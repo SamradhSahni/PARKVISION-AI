@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PARKVISION AI — Parking Congestion Intelligence</title>
+    <meta name="description" content="Real-time parking violation intelligence dashboard for Bengaluru Traffic Police powered by AI">
+    
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Heat -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- h3-js for hexagon rendering -->
+    <script src="https://unpkg.com/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a1f35;
+            --bg-glass: rgba(26, 31, 53, 0.85);
+            --border: rgba(255,255,255,0.06);
+            --text-primary: #f0f4ff;
+            --text-secondary: #8b95b0;
+            --text-muted: #5a6380;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+            --gradient-card: linear-gradient(145deg, rgba(59,130,246,0.08), rgba(139,92,246,0.05));
+            --shadow-lg: 0 25px 50px -12px rgba(0,0,0,0.4);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* ── HEADER ─────────────────────────── */
+        .header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            background: rgba(10, 14, 26, 0.75);
+            backdrop-filter: blur(24px) saturate(1.5);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--gradient-hero);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 900;
+            color: white;
+        }
+
+        .logo-text {
+            font-weight: 800;
+            font-size: 20px;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .shift-selector {
+            display: flex;
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 3px;
+            border: 1px solid var(--border);
+        }
+
+        .shift-btn {
+            padding: 6px 14px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .shift-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+        }
+
+        .shift-btn:hover:not(.active) {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* ── MAIN LAYOUT ────────────────────── */
+        .main {
+            margin-top: 64px;
+            display: grid;
+            grid-template-columns: 340px 1fr 360px;
+            grid-template-rows: auto 1fr;
+            height: calc(100vh - 64px);
+            gap: 0;
+        }
+
+        /* ── STATS BAR ──────────────────────── */
+        .stats-bar {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 16px;
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 150px;
+            background: var(--gradient-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: transform 0.2s, border-color 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(59,130,246,0.3);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+
+        .stat-value.blue { color: var(--accent-blue); }
+        .stat-value.cyan { color: var(--accent-cyan); }
+        .stat-value.purple { color: var(--accent-purple); }
+        .stat-value.emerald { color: var(--accent-emerald); }
+        .stat-value.amber { color: var(--accent-amber); }
+        .stat-value.red { color: var(--accent-red); }
+
+        .stat-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* ── LEFT PANEL (Hotspots) ──────────── */
+        .panel-left {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .panel-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            background: rgba(59,130,246,0.15);
+            color: var(--accent-blue);
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .hotspot-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .hotspot-list::-webkit-scrollbar { width: 4px; }
+        .hotspot-list::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+        .hotspot-item {
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .hotspot-item:hover {
+            background: rgba(59,130,246,0.06);
+            border-color: rgba(59,130,246,0.15);
+        }
+
+        .hotspot-item.selected {
+            background: rgba(59,130,246,0.1);
+            border-color: rgba(59,130,246,0.3);
+        }
+
+        .hotspot-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .hotspot-rank {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .hotspot-tier {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tier-URGENT { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .tier-HIGH { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .tier-MEDIUM { background: rgba(59,130,246,0.15); color: #3b82f6; }
+        .tier-LOW { background: rgba(16,185,129,0.15); color: #10b981; }
+        .tier-MONITOR { background: rgba(107,114,128,0.15); color: #6b7280; }
+
+        .hotspot-station {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .hotspot-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .hotspot-meta span { display: flex; align-items: center; gap: 3px; }
+
+        .chr-bar {
+            height: 3px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .chr-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--gradient-hero);
+            transition: width 0.6s ease;
+        }
+
+        /* ── MAP ────────────────────────────── */
+        .map-container {
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0d1117;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 800;
+            display: flex;
+            gap: 6px;
+        }
+
+        .map-btn {
+            padding: 8px 14px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .map-btn.active {
+            background: rgba(59,130,246,0.2);
+            color: var(--accent-blue);
+            border-color: rgba(59,130,246,0.3);
+        }
+
+        .map-btn:hover { color: var(--text-primary); }
+
+        .map-legend {
+            position: absolute;
+            bottom: 24px;
+            left: 16px;
+            z-index: 800;
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+        }
+
+        .legend-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* ── RIGHT PANEL (Charts + Chat) ───── */
+        .panel-right {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .tab-content::-webkit-scrollbar { width: 4px; }
+        .tab-content::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .chart-canvas { max-height: 200px; }
+
+        /* ── CHAT ───────────────────────────── */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .chat-msg {
+            margin-bottom: 12px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            max-width: 95%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-msg.user {
+            background: rgba(59,130,246,0.15);
+            border: 1px solid rgba(59,130,246,0.2);
+            margin-left: auto;
+            color: var(--text-primary);
+        }
+
+        .chat-msg.bot {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .chat-msg.bot strong { color: var(--text-primary); }
+
+        .chat-input-bar {
+            display: flex;
+            gap: 8px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input:focus { border-color: var(--accent-blue); }
+
+        .chat-send {
+            padding: 10px 18px;
+            background: var(--accent-blue);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+
+        .chat-send:hover { background: #2563eb; }
+        .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── PCIS Detail Card ───────────────── */
+        .detail-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-size: 12px;
+        }
+
+        .detail-label { color: var(--text-muted); font-weight: 500; }
+        .detail-value { color: var(--text-primary); font-weight: 600; }
+
+        /* ── Loading spinner ────────────────── */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Responsive ─────────────────────── */
+        @media (max-width: 1200px) {
+            .main {
+                grid-template-columns: 280px 1fr 300px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .main {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 400px auto;
+            }
+            .panel-left, .panel-right { max-height: 350px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header" id="header">
+    <div class="logo">
+        <div class="logo-icon">P</div>
+        <div>
+            <div class="logo-text">PARKVISION AI</div>
+            <div class="logo-sub">Parking Congestion Intelligence</div>
+        </div>
+    </div>
+    <div class="header-actions">
+        <div class="shift-selector" id="shiftSelector">
+            <button class="shift-btn active" data-shift="all">All</button>
+            <button class="shift-btn" data-shift="morning">Morning</button>
+            <button class="shift-btn" data-shift="midday">Midday</button>
+            <button class="shift-btn" data-shift="evening">Evening</button>
+            <button class="shift-btn" data-shift="night">Night</button>
+        </div>
+    </div>
+</header>
+
+<!-- ═══ MAIN LAYOUT ═══ -->
+<main class="main">
+    <!-- Stats Bar -->
+    <div class="stats-bar" id="statsBar">
+        <div class="stat-card">
+            <div class="stat-label">Total Violations</div>
+            <div class="stat-value blue" id="statViolations">—</div>
+            <div class="stat-sub">Jan – May 2024</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Active Hexagons</div>
+            <div class="stat-value cyan" id="statHexagons">—</div>
+            <div class="stat-sub">H3 resolution 9</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Recoverable CHR</div>
+            <div class="stat-value purple" id="statCHR">—</div>
+            <div class="stat-sub">vehicle-hours/day</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Avg PCIS</div>
+            <div class="stat-value amber" id="statPCIS">—</div>
+            <div class="stat-sub">Congestion Impact</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Police Stations</div>
+            <div class="stat-value emerald" id="statStations">54</div>
+            <div class="stat-sub">Bengaluru</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Priority Alerts</div>
+            <div class="stat-value red" id="statAlerts">—</div>
+            <div class="stat-sub">Urgent + High</div>
+        </div>
+    </div>
+
+    <!-- Left Panel — Hotspot List -->
+    <aside class="panel-left">
+        <div class="panel-header">
+            <span class="panel-title">Enforcement Priorities</span>
+            <span class="panel-badge" id="hotspotCount">Loading...</span>
+        </div>
+        <div class="hotspot-list" id="hotspotList"></div>
+    </aside>
+
+    <!-- Center — Map -->
+    <section class="map-container">
+        <div id="map"></div>
+        <div class="map-overlay">
+            <button class="map-btn active" data-layer="heatmap" id="btnHeatmap">Heatmap</button>
+            <button class="map-btn" data-layer="hexagons" id="btnHexagons">Hexagons</button>
+            <button class="map-btn" data-layer="routes" id="btnRoutes">Patrol Routes</button>
+            <button class="map-btn" data-layer="stations" id="btnStations">Stations</button>
+        </div>
+        <div class="map-legend">
+            <div class="legend-title">PCIS Impact</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Catastrophic (>0.8)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Critical (0.6-0.8)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>High (0.4-0.6)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Moderate (0.2-0.4)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div>Low (<0.2)</div>
+        </div>
+    </section>
+
+    <!-- Right Panel — Charts + Chat -->
+    <aside class="panel-right">
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="analytics" id="tabAnalytics">Analytics</button>
+            <button class="tab-btn" data-tab="detail" id="tabDetail">Detail</button>
+            <button class="tab-btn" data-tab="chat" id="tabChat">AI Chat</button>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div class="tab-content">
+            <div class="tab-pane active" id="paneAnalytics">
+                <div class="chart-card">
+                    <div class="chart-title">Hourly Violation Distribution</div>
+                    <canvas id="chartHourly" class="chart-canvas"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Daily Violation Distribution</div>
+                    <canvas id="chartDaily" class="chart-canvas"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Next Week Predictions</div>
+                    <canvas id="chartPredict" class="chart-canvas"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Priority Tier Distribution</div>
+                    <canvas id="chartTiers" class="chart-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Detail Tab -->
+            <div class="tab-pane" id="paneDetail">
+                <div id="detailContent">
+                    <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px 20px;">
+                        Click on a hotspot to see its PCIS breakdown and enforcement details.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Chat Tab -->
+            <div class="tab-pane" id="paneChat">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-msg bot">
+                            <strong>PARKVISION AI</strong><br>
+                            Hello! I'm your parking intelligence assistant. Ask me anything about Bengaluru's parking violations, hotspots, enforcement routes, or predictions.
+                        </div>
+                    </div>
+                    <div class="chat-input-bar">
+                        <input class="chat-input" id="chatInput" placeholder="Ask about parking violations..." />
+                        <button class="chat-send" id="chatSend">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// PARKVISION AI — Dashboard Controller
+// ═══════════════════════════════════════════════════════
+
+const API = '';  // Same origin
+
+// ── State ───────────────────────────────────────────
+let hotspots = [];
+let map, heatLayer, hexLayer, routeLayer, stationLayer;
+let activeShift = 'all';
+let activeLayers = new Set(['heatmap']);
+let charts = {};
+
+// ── Initialize ──────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    initMap();
+    initTabs();
+    initShiftSelector();
+    initMapButtons();
+    initChat();
+    
+    await Promise.all([
+        loadSummary(),
+        loadHotspots(),
+        loadTemporal(),
+        loadPredictions(),
+    ]);
+});
+
+// ── Map ─────────────────────────────────────────────
+function initMap() {
+    map = L.map('map', {
+        center: [12.9716, 77.5946],
+        zoom: 12,
+        zoomControl: false,
+        attributionControl: false,
+    });
+
+    // Dark tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+}
+
+// ── Load Summary Stats ──────────────────────────────
+async function loadSummary() {
+    try {
+        const res = await fetch(`${API}/api/summary`);
+        const data = await res.json();
+        
+        document.getElementById('statViolations').textContent = data.total_violations?.toLocaleString() || '—';
+        document.getElementById('statHexagons').textContent = data.total_hexagons?.toLocaleString() || '—';
+        document.getElementById('statCHR').textContent = (data.total_chr / 1000000).toFixed(1) + 'M';
+        document.getElementById('statPCIS').textContent = data.avg_pcis?.toFixed(3) || '—';
+        
+        const alerts = (data.tiers?.URGENT || 0) + (data.tiers?.HIGH || 0);
+        document.getElementById('statAlerts').textContent = alerts;
+        
+        // Tier chart
+        if (data.tiers) {
+            renderTierChart(data.tiers);
+        }
+    } catch (e) {
+        console.error('Summary load error:', e);
+    }
+}
+
+// ── Load Hotspots ───────────────────────────────────
+async function loadHotspots() {
+    try {
+        const res = await fetch(`${API}/api/hotspots?n=100`);
+        const data = await res.json();
+        hotspots = data.hotspots || [];
+        
+        document.getElementById('hotspotCount').textContent = `Top ${hotspots.length}`;
+        renderHotspotList(hotspots);
+        renderHeatmap(hotspots);
+    } catch (e) {
+        console.error('Hotspot load error:', e);
+    }
+}
+
+function renderHotspotList(items) {
+    const list = document.getElementById('hotspotList');
+    list.innerHTML = items.map((h, i) => `
+        <div class="hotspot-item" data-idx="${i}" onclick="selectHotspot(${i})">
+            <div class="hotspot-top">
+                <span class="hotspot-rank">#${h.priority_rank}</span>
+                <span class="hotspot-tier tier-${h.priority_tier}">${h.priority_tier}</span>
+            </div>
+            <div class="hotspot-station">${h.police_station}</div>
+            <div class="hotspot-meta">
+                <span>PCIS ${h.pcis_mean?.toFixed(3)}</span>
+                <span>CHR ${(h.chr/1000).toFixed(0)}K</span>
+                <span>${h.daily_frequency?.toFixed(0)}/day</span>
+            </div>
+            <div class="chr-bar"><div class="chr-fill" style="width:${h.chr_normalized}%"></div></div>
+        </div>
+    `).join('');
+}
+
+function selectHotspot(idx) {
+    const h = hotspots[idx];
+    if (!h) return;
+    
+    // Highlight in list
+    document.querySelectorAll('.hotspot-item').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`.hotspot-item[data-idx="${idx}"]`)?.classList.add('selected');
+    
+    // Pan map
+    map.flyTo([h.centroid_lat, h.centroid_lon], 15, { duration: 1 });
+    
+    // Show popup
+    L.popup()
+        .setLatLng([h.centroid_lat, h.centroid_lon])
+        .setContent(`
+            <div style="font-family:Inter,sans-serif;color:#1a1f35;min-width:200px;">
+                <strong style="font-size:14px;">#${h.priority_rank} — ${h.police_station}</strong><br>
+                <span style="font-size:12px;color:#666;">
+                    PCIS: <strong>${h.pcis_mean?.toFixed(3)}</strong> | 
+                    CHR: <strong>${(h.chr/1000).toFixed(0)}K</strong><br>
+                    Violations: ${h.violation_count} | Peak: ${h.peak_hour}:00<br>
+                    H3: ${h.h3_index}
+                </span>
+            </div>
+        `)
+        .openOn(map);
+    
+    // Switch to detail tab and load
+    switchTab('detail');
+    renderDetail(h);
+}
+
+function renderDetail(h) {
+    const dc = document.getElementById('detailContent');
+    dc.innerHTML = `
+        <div class="detail-card">
+            <div class="chart-title">#${h.priority_rank} — ${h.police_station}</div>
+            <div class="detail-row"><span class="detail-label">H3 Index</span><span class="detail-value" style="font-size:10px">${h.h3_index}</span></div>
+            <div class="detail-row"><span class="detail-label">Priority Tier</span><span class="detail-value"><span class="hotspot-tier tier-${h.priority_tier}">${h.priority_tier}</span></span></div>
+            <div class="detail-row"><span class="detail-label">PCIS Score</span><span class="detail-value">${h.pcis_mean?.toFixed(3)}</span></div>
+            <div class="detail-row"><span class="detail-label">CHR Score</span><span class="detail-value">${(h.chr/1000).toFixed(1)}K veh-hrs/day</span></div>
+            <div class="detail-row"><span class="detail-label">CHR Normalized</span><span class="detail-value">${h.chr_normalized?.toFixed(1)} / 100</span></div>
+        </div>
+        <div class="detail-card">
+            <div class="chart-title">PCIS Components</div>
+            <div class="detail-row"><span class="detail-label">Capacity Reduction</span><span class="detail-value">${h.avg_capacity_reduction?.toFixed(3)}</span></div>
+            <div class="detail-row"><span class="detail-label">Proximity Factor</span><span class="detail-value">${h.avg_proximity?.toFixed(3)}</span></div>
+            <div class="detail-row"><span class="detail-label">Main Road %</span><span class="detail-value">${(h.pct_main_road * 100).toFixed(0)}%</span></div>
+            <div class="detail-row"><span class="detail-label">Junction %</span><span class="detail-value">${(h.pct_junction * 100).toFixed(0)}%</span></div>
+            <div class="detail-row"><span class="detail-label">Road Width</span><span class="detail-value">${h.avg_road_width?.toFixed(1)}m</span></div>
+        </div>
+        <div class="detail-card">
+            <div class="chart-title">Violation Profile</div>
+            <div class="detail-row"><span class="detail-label">Total Violations</span><span class="detail-value">${h.violation_count?.toLocaleString()}</span></div>
+            <div class="detail-row"><span class="detail-label">Daily Frequency</span><span class="detail-value">${h.daily_frequency?.toFixed(1)}/day</span></div>
+            <div class="detail-row"><span class="detail-label">Peak Hour</span><span class="detail-value">${h.peak_hour}:00</span></div>
+            <div class="detail-row"><span class="detail-label">Location</span><span class="detail-value">${h.centroid_lat?.toFixed(4)}, ${h.centroid_lon?.toFixed(4)}</span></div>
+        </div>
+    `;
+}
+
+// ── Heatmap Layer ───────────────────────────────────
+function renderHeatmap(items) {
+    if (heatLayer) map.removeLayer(heatLayer);
+    
+    const points = items.map(h => [
+        h.centroid_lat, h.centroid_lon,
+        h.chr_normalized / 100
+    ]);
+    
+    heatLayer = L.heatLayer(points, {
+        radius: 25,
+        blur: 20,
+        maxZoom: 15,
+        gradient: {
+            0.0: '#1a1f35',
+            0.2: '#10b981',
+            0.4: '#3b82f6',
+            0.6: '#f59e0b',
+            0.8: '#ef4444',
+            1.0: '#ec4899',
+        }
+    }).addTo(map);
+}
+
+// ── Hexagon Layer ───────────────────────────────────
+function renderHexagons(items) {
+    if (hexLayer) map.removeLayer(hexLayer);
+    hexLayer = L.layerGroup();
+    
+    items.forEach(h => {
+        const color = pcisColor(h.pcis_mean);
+        try {
+            const boundary = h3.cellToBoundary(h.h3_index);
+            const latlngs = boundary.map(([lat, lng]) => [lat, lng]);
+            L.polygon(latlngs, {
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.35,
+                weight: 1,
+                opacity: 0.6,
+            }).bindPopup(`
+                <strong>${h.police_station}</strong><br>
+                PCIS: ${h.pcis_mean?.toFixed(3)} | Violations: ${h.violation_count}
+            `).addTo(hexLayer);
+        } catch(e) {
+            // Fallback: circle marker
+            L.circleMarker([h.centroid_lat, h.centroid_lon], {
+                radius: 8, color, fillColor: color,
+                fillOpacity: 0.5, weight: 1,
+            }).addTo(hexLayer);
+        }
+    });
+    
+    hexLayer.addTo(map);
+}
+
+function pcisColor(pcis) {
+    if (pcis >= 0.8) return '#ef4444';
+    if (pcis >= 0.6) return '#f59e0b';
+    if (pcis >= 0.4) return '#3b82f6';
+    if (pcis >= 0.2) return '#10b981';
+    return '#6b7280';
+}
+
+// ── Patrol Routes Layer ─────────────────────────────
+async function loadRoutes() {
+    try {
+        const url = activeShift === 'all' 
+            ? `${API}/api/patrol-routes`
+            : `${API}/api/patrol-routes?shift=${activeShift}`;
+        const res = await fetch(url);
+        const geojson = await res.json();
+        
+        if (routeLayer) map.removeLayer(routeLayer);
+        
+        const routeColors = {
+            morning: '#f59e0b',
+            midday: '#3b82f6',
+            afternoon: '#8b5cf6',
+            evening: '#ec4899',
+            night: '#06b6d4',
+        };
+        
+        routeLayer = L.geoJSON(geojson, {
+            style: (feature) => ({
+                color: routeColors[feature.properties.shift] || '#3b82f6',
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '8, 6',
+            }),
+            onEachFeature: (feature, layer) => {
+                const p = feature.properties;
+                layer.bindPopup(`
+                    <strong>${p.depot_station}</strong> — ${p.shift}<br>
+                    Stops: ${p.n_stops} | CHR: ${(p.total_chr/1000).toFixed(0)}K<br>
+                    Travel: ${p.travel_time_hours}h | Total: ${p.total_time_hours}h
+                `);
+            }
+        }).addTo(map);
+    } catch (e) {
+        console.error('Routes load error:', e);
+    }
+}
+
+// ── Stations Layer ──────────────────────────────────
+async function loadStations() {
+    try {
+        const res = await fetch(`${API}/api/stations`);
+        const geojson = await res.json();
+        
+        if (stationLayer) map.removeLayer(stationLayer);
+        
+        stationLayer = L.geoJSON(geojson, {
+            pointToLayer: (feature, latlng) => {
+                return L.circleMarker(latlng, {
+                    radius: 7,
+                    fillColor: '#10b981',
+                    color: '#065f46',
+                    weight: 2,
+                    fillOpacity: 0.9,
+                });
+            },
+            onEachFeature: (feature, layer) => {
+                const p = feature.properties;
+                layer.bindPopup(`
+                    <strong>${p.police_station}</strong><br>
+                    Violations: ${parseInt(p.total_violations).toLocaleString()}<br>
+                    Avg PCIS: ${parseFloat(p.avg_pcis).toFixed(3)}<br>
+                    Daily Rate: ${parseFloat(p.daily_rate).toFixed(0)}/day
+                `);
+            }
+        }).addTo(map);
+    } catch (e) {
+        console.error('Stations load error:', e);
+    }
+}
+
+// ── Temporal Charts ─────────────────────────────────
+async function loadTemporal() {
+    try {
+        const res = await fetch(`${API}/api/temporal/city`);
+        const data = await res.json();
+        renderHourlyChart(data.hourly);
+        renderDailyChart(data.daily);
+    } catch (e) {
+        console.error('Temporal load error:', e);
+    }
+}
+
+function renderHourlyChart(hourly) {
+    const ctx = document.getElementById('chartHourly');
+    if (charts.hourly) charts.hourly.destroy();
+    
+    const hours = Object.keys(hourly).map(Number).sort((a,b) => a-b);
+    const values = hours.map(h => hourly[h]);
+    
+    charts.hourly = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: hours.map(h => `${h}:00`),
+            datasets: [{
+                data: values,
+                backgroundColor: values.map(v => {
+                    const max = Math.max(...values);
+                    const ratio = v / max;
+                    return ratio > 0.8 ? '#ef4444' : ratio > 0.5 ? '#f59e0b' : '#3b82f6';
+                }),
+                borderRadius: 4,
+                borderSkipped: false,
+            }]
+        },
+        options: chartOptions('Violations'),
+    });
+}
+
+function renderDailyChart(daily) {
+    const ctx = document.getElementById('chartDaily');
+    if (charts.daily) charts.daily.destroy();
+    
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const values = days.map(d => daily[d] || 0);
+    
+    charts.daily = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: days,
+            datasets: [{
+                data: values,
+                backgroundColor: '#8b5cf6',
+                borderRadius: 4,
+                borderSkipped: false,
+            }]
+        },
+        options: chartOptions('Violations'),
+    });
+}
+
+async function loadPredictions() {
+    try {
+        const res = await fetch(`${API}/api/predict`);
+        const data = await res.json();
+        
+        const ctx = document.getElementById('chartPredict');
+        if (charts.predict) charts.predict.destroy();
+        
+        const daily = data.daily || [];
+        charts.predict = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: daily.map(d => d.pred_dow_name || ''),
+                datasets: [{
+                    label: 'Predicted',
+                    data: daily.map(d => d.total),
+                    borderColor: '#ec4899',
+                    backgroundColor: 'rgba(236,72,153,0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#ec4899',
+                }]
+            },
+            options: chartOptions('Violations'),
+        });
+    } catch (e) {
+        console.error('Predict load error:', e);
+    }
+}
+
+function renderTierChart(tiers) {
+    const ctx = document.getElementById('chartTiers');
+    if (charts.tiers) charts.tiers.destroy();
+    
+    const labels = ['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'MONITOR'];
+    const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6b7280'];
+    const values = labels.map(l => tiers[l] || 0);
+    
+    charts.tiers = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderWidth: 0,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#8b95b0', font: { size: 11 }, padding: 12, usePointStyle: true },
+                }
+            }
+        }
+    });
+}
+
+function chartOptions(yLabel) {
+    return {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+        },
+        scales: {
+            x: {
+                ticks: { color: '#5a6380', font: { size: 10 } },
+                grid: { display: false },
+            },
+            y: {
+                ticks: { color: '#5a6380', font: { size: 10 } },
+                grid: { color: 'rgba(255,255,255,0.03)' },
+                title: { display: true, text: yLabel, color: '#5a6380', font: { size: 10 } },
+            }
+        }
+    };
+}
+
+// ── Tab Navigation ──────────────────────────────────
+function initTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelector(`.tab-btn[data-tab="${tab}"]`)?.classList.add('active');
+    document.getElementById(`pane${tab.charAt(0).toUpperCase() + tab.slice(1)}`)?.classList.add('active');
+}
+
+// ── Shift Selector ──────────────────────────────────
+function initShiftSelector() {
+    document.querySelectorAll('.shift-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeShift = btn.dataset.shift;
+            if (activeLayers.has('routes')) loadRoutes();
+        });
+    });
+}
+
+// ── Map Layer Buttons ───────────────────────────────
+function initMapButtons() {
+    document.querySelectorAll('.map-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const layer = btn.dataset.layer;
+            btn.classList.toggle('active');
+            
+            if (btn.classList.contains('active')) {
+                activeLayers.add(layer);
+                toggleLayer(layer, true);
+            } else {
+                activeLayers.delete(layer);
+                toggleLayer(layer, false);
+            }
+        });
+    });
+}
+
+function toggleLayer(layer, show) {
+    switch(layer) {
+        case 'heatmap':
+            if (show && heatLayer) heatLayer.addTo(map);
+            else if (heatLayer) map.removeLayer(heatLayer);
+            break;
+        case 'hexagons':
+            if (show) renderHexagons(hotspots);
+            else if (hexLayer) map.removeLayer(hexLayer);
+            break;
+        case 'routes':
+            if (show) loadRoutes();
+            else if (routeLayer) map.removeLayer(routeLayer);
+            break;
+        case 'stations':
+            if (show) loadStations();
+            else if (stationLayer) map.removeLayer(stationLayer);
+            break;
+    }
+}
+
+// ── Chat ────────────────────────────────────────────
+function initChat() {
+    const input = document.getElementById('chatInput');
+    const send = document.getElementById('chatSend');
+    
+    send.addEventListener('click', sendChat);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendChat();
+    });
+}
+
+async function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+    
+    addChatMsg(msg, 'user');
+    input.value = '';
+    
+    const send = document.getElementById('chatSend');
+    send.disabled = true;
+    addChatMsg('<div class="spinner"></div> Thinking...', 'bot', true);
+    
+    try {
+        const res = await fetch(`${API}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: msg }),
+        });
+        const data = await res.json();
+        
+        // Remove loading message
+        const msgs = document.getElementById('chatMessages');
+        msgs.lastChild?.remove();
+        
+        addChatMsg(`<strong>PARKVISION AI</strong><br>${formatResponse(data.response)}`, 'bot', true);
+    } catch (e) {
+        const msgs = document.getElementById('chatMessages');
+        msgs.lastChild?.remove();
+        addChatMsg(`<strong>Error:</strong> ${e.message}`, 'bot', true);
+    }
+    
+    send.disabled = false;
+}
+
+function addChatMsg(text, type, isHtml = false) {
+    const msgs = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = `chat-msg ${type}`;
+    if (isHtml) div.innerHTML = text;
+    else div.textContent = text;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function formatResponse(text) {
+    if (!text) return '';
+    // Basic markdown-to-html
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>')
+        .replace(/`(.*?)`/g, '<code style="background:rgba(59,130,246,0.1);padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>');
+}
+
+</script>
+</body>
+</html>

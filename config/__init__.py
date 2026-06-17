@@ -1,0 +1,1 @@
+# PARKVISION AI — Config Package
