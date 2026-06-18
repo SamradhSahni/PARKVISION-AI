@@ -109,14 +109,26 @@ PARKVISION AI converts raw parking challan data into actionable enforcement inte
 
 ## 4. Quick Start — Clone and Run
 
-> **Minimum time to get the dashboard running: ~5 minutes** (if data files are pre-built)
+> **Important**: All processed data files (`data/*.parquet`, `output/*.geojson`, `models/*.joblib`) and the raw violation CSV are excluded from the repository (too large for Git). You **must** complete Steps 5 and 6 before the server will work.
+
+### What you need before starting
+
+| Item | How to get it |
+|------|--------------|
+| Raw violation CSV file | Obtain from the project owner or dataset source |
+| NVIDIA NIM API key | [build.nvidia.com](https://build.nvidia.com) — free account |
+| Python 3.10–3.12 | [python.org/downloads](https://www.python.org/downloads/) |
+
+---
+
+### Step-by-Step
 
 ```bash
-# 1. Clone the repository
+# ── Step 1: Clone the repository ──────────────────────────────────
 git clone https://github.com/SamradhSahni/PARKVISION-AI.git
 cd PARKVISION-AI
 
-# 2. Create and activate a virtual environment
+# ── Step 2: Create and activate a virtual environment ─────────────
 python -m venv venv
 
 # Windows
@@ -125,22 +137,52 @@ venv\Scripts\activate
 # macOS / Linux
 source venv/bin/activate
 
-# 3. Install dependencies
+# ── Step 3: Upgrade pip and install all dependencies ─────────────
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 
-# 4. Set up environment variables
-copy .env.example .env          # Windows
-# cp .env.example .env          # macOS/Linux
-# Then edit .env with your API keys (see Section 7)
+# ── Step 4: Set up environment variables ──────────────────────────
+# Windows
+copy .env.example .env
 
-# 5. Start the dashboard server
+# macOS / Linux
+# cp .env.example .env
+
+# Now open .env in any text editor and add your API keys:
+#   NVIDIA_API_KEY=nvapi-your-key-here
+#   TOMTOM_API_KEY=your-tomtom-key-here   (optional)
+```
+
+```bash
+# ── Step 5: Place the raw CSV file in the project root ───────────
+# The file must be named exactly:
+#   "jan to may police violation_anonymized791b166.csv"
+# Place it here:
+#   PARKVISION-AI/
+#   └── jan to may police violation_anonymized791b166.csv  ← here
+
+# ── Step 6: Run the data pipeline (ONE-TIME SETUP, ~30-90 min) ───
+# This processes the raw CSV and builds all data files the server needs.
+python -m src.run_pipeline
+
+# You will see progress logs for each of the 11 stages:
+# Stage 1/11: Data ingestion ... done
+# Stage 2/11: Road network (OSM download ~500 MB) ... done
+# Stage 3/11: Spatial indexing (H3 hex) ... done
+# ...
+# Pipeline complete. All data files written to data/ and output/
+
+# ── Step 7: Start the dashboard server ────────────────────────────
 python -m uvicorn src.api_server:app --host 0.0.0.0 --port 8000
 
-# 6. Open the dashboard
+# ── Step 8: Open the dashboard ────────────────────────────────────
 # Visit http://localhost:8000 in your browser
 ```
 
+> **The pipeline is a one-time step.** Once `data/`, `output/`, and `models/` are populated, you only need Step 7 (start the server) on every subsequent run.
+
 ---
+
 
 ## 5. Prerequisites
 
