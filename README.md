@@ -1,386 +1,760 @@
-# PARKVISION AI — Parking Congestion Intelligence System
+# PARKVISION AI
 
-> **An AI-powered parking violation analysis and enforcement optimization platform for Bengaluru Traffic Police (BTP)**, combining spatial clustering, traffic engineering models, machine learning prediction, and LLM-driven intelligence.
+**AI-driven parking enforcement intelligence for Bengaluru Traffic Police**
+
+A full-stack data science project that processes 207,781 real-world parking violation records to identify hotspots, model congestion impact, optimize patrol routes, and power a natural-language AI assistant — all served through a live web dashboard.
 
 ---
 
 ## Table of Contents
 
-1. [System Overview](#system-overview)
-2. [Architecture](#architecture)
-3. [Pipeline Stages](#pipeline-stages)
-4. [Key Results](#key-results)
-5. [Installation & Setup](#installation--setup)
-6. [Usage](#usage)
-7. [API Reference](#api-reference)
-8. [Data Files](#data-files)
-9. [Configuration](#configuration)
-10. [Technologies Used](#technologies-used)
+1. [Project Overview](#1-project-overview)
+2. [Features](#2-features)
+3. [Architecture](#3-architecture)
+4. [Quick Start — Clone and Run](#4-quick-start--clone-and-run)
+5. [Prerequisites](#5-prerequisites)
+6. [Installation Steps](#6-installation-steps)
+7. [Environment Variables (API Keys)](#7-environment-variables-api-keys)
+8. [Running the Dashboard](#8-running-the-dashboard)
+9. [Running the Full Data Pipeline](#9-running-the-full-data-pipeline)
+10. [Dashboard Pages](#10-dashboard-pages)
+11. [API Reference](#11-api-reference)
+12. [Data Science Methodology](#12-data-science-methodology)
+13. [Project File Structure](#13-project-file-structure)
+14. [Troubleshooting](#14-troubleshooting)
 
 ---
 
-## System Overview
+## 1. Project Overview
 
-PARKVISION AI ingests **207,781 parking violation records** from Bengaluru Traffic Police and transforms them into actionable enforcement intelligence through a 10-stage analytical pipeline.
+PARKVISION AI converts raw parking challan data into actionable enforcement intelligence. It:
 
-### What It Does
-
-| Capability | Description |
-|:-----------|:------------|
-| **Multi-scale Hotspot Detection** | ST-DBSCAN clustering at 3 scales (50m/150m/500m) with Getis-Ord Gi* statistical validation |
-| **Congestion Impact Scoring** | 5-component PCIS formula quantifying each violation's real traffic impact |
-| **Shockwave Propagation** | LWR model estimating queue buildup and speed degradation ripple effects |
-| **Location Memory** | Chronic "addiction zones" where violations persist despite enforcement |
-| **XGBoost Prediction** | Forecasts violations per H3 hexagon per hour for the next week |
-| **Enforcement ROI** | CongestionHoursRecovered (CHR) metric ranking hotspots by enforcement value |
-| **Patrol Optimization** | Ant Colony Optimization (ACO) generating shift-aware patrol routes |
-| **LLM Intelligence** | Gemini 2.0 Flash agent with function calling for natural language queries |
-| **Interactive Dashboard** | Real-time visualization with heatmaps, charts, and AI chat |
+- Scores every hexagonal zone in Bengaluru with a **PCIS (Parking Congestion Impact Score)** built from 5 road-network-aware components
+- Computes **CHR (Congestion Hours Recovered)** — the ROI of enforcement in vehicle-hours/day
+- Clusters violation hotspots using **ST-DBSCAN** at micro/meso/macro scales validated by **Getis-Ord Gi\***
+- Generates **optimized patrol routes** for 5 daily shifts using K-Means + greedy nearest-neighbor routing
+- Predicts next-week violations using **XGBoost**
+- Provides an **AI chat assistant** powered by NVIDIA NIM (LLaMA-3.3-70B) with full data context
+- Serves everything via a dark-mode **interactive dashboard** built on Leaflet + Chart.js
 
 ---
 
-## Architecture
+## 2. Features
+
+### Dashboard Pages
+
+| Page | Description |
+|------|-------------|
+| **Violation Map** | Full-screen Leaflet map with heatmap, H3 hexagon layer, patrol routes, and station markers. Shift-based route filtering (Morning / Midday / Afternoon / Evening / Night). |
+| **Filter Hotspots** | Filter 200+ ranked hotspots by station, day of week, time bucket, vehicle type, and priority tier. Card grid results with PCIS / CHR / Violations / Peak Hour. |
+| **Enforcement Planner** | K-Means clustering + greedy nearest-neighbor patrol route generator. Select day, shift hours, and number of officers (1–5). See per-officer stop schedules with ETAs. |
+| **Station Comparison** | 6-metric scorecard for all 54 police stations: quality, coverage, responsiveness, balance, zone complexity, and overall score. Sortable table + bar chart. |
+| **Temporal Patterns** | Day × Hour violation heatmap (7 × 24). Identifies 4–7 AM early-morning enforcement sweep pattern. |
+| **Gap Analysis** | 3-method indirect detection of potentially under-recorded areas using vehicle diversity, time coverage gaps, and junction density ratios. |
+| **Vehicle Profiles** | Per-station vehicle type breakdown (pie chart + table) with enforcement note (e.g., "scooter-heavy → check footpaths"). |
+| **Weekday vs Weekend** | Scatter plot and table showing observed weekday/weekend split per station. Highlights stations with unusual weekend enforcement patterns. |
+| **AI Chat** | Natural language Q&A powered by NVIDIA NIM (LLaMA-3.3-70B). Answers questions about hotspots, PCIS scores, CHR, temporal patterns, predictions, and enforcement recommendations using live data context. |
+
+### Core Algorithms
+
+| Component | Method |
+|-----------|--------|
+| Spatial clustering | ST-DBSCAN at 3 scales (50m / 150m / 500m), min 5 points |
+| Statistical validation | Getis-Ord Gi\* with permutation testing |
+| Hexagonal indexing | H3 resolution 9 (~174m edge length) |
+| Congestion scoring | PCIS = 5-component weighted formula |
+| Enforcement ROI | CHR (Congestion Hours Recovered) in vehicle-hours/day |
+| Patrol routing | K-Means clustering → greedy nearest-neighbor |
+| Prediction | XGBoost regressor, day × hour features |
+| AI assistant | NVIDIA NIM — meta/llama-3.3-70b-instruct via OpenAI-compatible API |
+
+---
+
+## 3. Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    PARKVISION AI Architecture                       │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐      │
-│  │  Stage 1  │───▶│  Stage 2  │───▶│  Stage 3  │───▶│  Stage 4  │   │
-│  │ Ingest &  │    │ Road Net  │    │ H3 Index  │    │ ST-DBSCAN │   │
-│  │  Clean    │    │ Map-Match │    │  & POI    │    │ Clustering│   │
-│  └──────────┘    └──────────┘    └──────────┘    └──────────┘      │
-│                                                        │            │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐      │
-│  │  Stage 8  │◀───│  Stage 7  │◀───│  Stage 6  │◀───│  Stage 5  │   │
-│  │ XGBoost   │    │ Shockwave │    │  PCIS     │    │ Gi* Stats │   │
-│  │ Predict   │    │ & Memory  │    │ Scoring   │    │ Temporal  │   │
-│  └──────────┘    └──────────┘    └──────────┘    └──────────┘      │
-│       │                                                             │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐      │
-│  │  Stage 9  │───▶│ Stage 10  │───▶│  Gemini   │───▶│Dashboard  │   │
-│  │ CHR & ROI │    │ACO Routes │    │ LLM Agent │    │ FastAPI   │   │
-│  └──────────┘    └──────────┘    └──────────┘    └──────────┘      │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                     DATA PIPELINE                       │
+│  Raw CSV → Clean → Enrich → Cluster → Score → Route    │
+│  src/data_ingestion.py                                  │
+│  src/road_network.py        ← OSM road graph            │
+│  src/spatial_indexing.py    ← H3 hex binning            │
+│  src/hotspot_engine.py      ← ST-DBSCAN clusters        │
+│  src/hotspot_stats.py       ← Getis-Ord Gi*             │
+│  src/pcis_engine.py         ← PCIS + CHR scoring        │
+│  src/congestion_model.py    ← Location memory + CHR     │
+│  src/enforcement_optimizer.py ← K-Means + routing       │
+│  src/patrol_router.py       ← Shift-based patrol routes │
+│  src/prediction.py          ← XGBoost predictions       │
+│  src/llm_agent.py           ← NVIDIA NIM AI agent       │
+└───────────────┬─────────────────────────────────────────┘
+                │  Parquet files (data/), GeoJSON (output/)
+                ▼
+┌─────────────────────────────────────────────────────────┐
+│                    FASTAPI BACKEND                       │
+│  src/api_server.py    (port 8000)                       │
+│  20+ REST endpoints serving live data                   │
+└───────────────┬─────────────────────────────────────────┘
+                │  JSON / GeoJSON
+                ▼
+┌─────────────────────────────────────────────────────────┐
+│                  WEB DASHBOARD                          │
+│  dashboard/index.html                                   │
+│  Leaflet 1.9.4 + Chart.js 4.4 + H3-js 4.1             │
+│  9 interactive pages, dark theme                        │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Pipeline Stages
+## 4. Quick Start — Clone and Run
 
-### Stage 1: Data Ingestion & Cleaning
-- **Module:** `src/data_ingestion.py`
-- **Input:** Raw CSV (207,781 records)
-- **Process:** Parse dates/times, extract lat/lon, normalize vehicle types, severity mapping, temporal features (hour, day_of_week, is_weekend, is_peak, month)
-- **Output:** `data/cleaned_violations.parquet`
-
-### Stage 2: Road Network & Map-Matching
-- **Module:** `src/road_network.py`
-- **Process:** Load OSMnx Bengaluru graph (25km radius), compute edge betweenness centrality, snap violations to nearest road edges, extract highway class/width/lanes/speed
-- **Output:** `data/enriched_violations.parquet`, `data/road_edges.parquet`
-
-### Stage 3: H3 Spatial Indexing & POI Enrichment
-- **Module:** `src/spatial_indexing.py`
-- **Process:** Assign H3 resolution-9 hexagons (~174m), aggregate hex statistics, detect nearby POIs (metro, bus stops, hospitals, schools, markets) from OSM data
-- **Output:** `data/h3_hex_stats.parquet`, `output/h3_hex_stats.geojson`
-
-### Stage 4: ST-DBSCAN Multi-Scale Clustering
-- **Module:** `src/hotspot_engine.py`
-- **Process:** 3-scale spatiotemporal clustering:
-  - **Micro** (50m, 2h, min_pts=5): Street-level clusters
-  - **Meso** (150m, 2h, min_pts=5): Neighborhood clusters  
-  - **Macro** (500m, 2h, min_pts=5): Zone-level clusters
-- **Output:** `data/hotspot_clusters.parquet`, `data/cluster_profiles.parquet`
-
-### Stage 5: Statistical Validation & Temporal Profiling
-- **Module:** `src/hotspot_stats.py`
-- **Process:** Getis-Ord Gi* z-scores (count + severity-weighted), FFT dominant frequency detection, hourly/daily temporal profiles per cluster
-- **Output:** `data/h3_hotspot_significance.parquet`, `data/temporal_profiles.json`
-
-### Stage 6: PCIS Scoring Engine
-- **Module:** `src/pcis_engine.py`
-- **Formula:** `PCIS = 0.30×CR + 0.20×PF + 0.20×TDM + 0.15×VOF + 0.15×NC`
-  - CR: Capacity Reduction (vehicle footprint / road width)
-  - PF: Proximity Factor (distance to junctions)
-  - TDM: Temporal Demand Multiplier (peak vs off-peak)
-  - VOF: Vehicle Obstruction Factor (severity weight)
-  - NC: Network Criticality (betweenness centrality)
-- **Output:** `data/pcis_scored_violations.parquet`, `data/h3_pcis_scores.parquet`
-
-### Stage 7: Congestion Propagation & Location Memory
-- **Module:** `src/congestion_model.py`
-- **Process:** LWR shockwave model (queue length, spillback distance, speed degradation), Location Memory Score (0.6×persistence + 0.4×repeat_vehicle_fraction), cross-jurisdiction spillover analysis
-- **Output:** `output/ripple_contours.geojson`, `data/location_memory.parquet`, `data/spillover_analysis.parquet`
-
-### Stage 8: XGBoost Violation Prediction
-- **Module:** `src/prediction.py`
-- **Process:** 40-feature model (temporal cyclical, PCIS components, road characteristics, location memory, historical stats). Time-series 80/20 split, 500 trees
-- **Performance:** Test MAE: 1.303, RMSE: 2.448, R²: 0.601
-- **Output:** `models/violation_predictor.joblib`, `data/predicted_violations.parquet`
-
-### Stage 9: Enforcement ROI & Station Profiling
-- **Module:** `src/enforcement_optimizer.py`
-- **Process:** Geolocate 54 police stations, compute jurisdiction profiles, calculate CongestionHoursRecovered (CHR = PCIS × frequency × duration × capacity_affected)
-- **Output:** `data/enforcement_priorities.parquet`, `data/police_stations.geojson`
-
-### Stage 10: ACO Patrol Route Optimization
-- **Module:** `src/patrol_router.py`
-- **Process:** Ant Colony Optimization (50 ants, 100 iterations) across 5 shifts from 8 depot stations. Generates Daily Enforcement Intelligence Brief
-- **Output:** `output/patrol_routes.geojson`, `output/daily_brief.md`
-
----
-
-## Key Results
-
-### Violation Distribution
-- **207,781 total violations** across 151 observation days
-- **2,420 H3 hexagons** with at least one violation
-- **54 police stations** covering Bengaluru
-
-### Top 5 Hotspot Stations
-
-| Station | Violations | Daily Rate | PCIS | Pattern |
-|:--------|:-----------|:-----------|:-----|:--------|
-| Upparpet | 25,588 | 169/day | 0.536 | Morning |
-| Shivajinagar | 18,189 | 120/day | 0.511 | Morning |
-| Malleshwaram | 16,035 | 106/day | 0.432 | Morning |
-| HAL Old Airport | 13,584 | 91/day | 0.399 | Morning |
-| City Market | 12,409 | 82/day | 0.482 | Morning |
-
-### Congestion Impact
-- **Total recoverable congestion:** 5.66M vehicle-hours/day
-- **Top 20 hexagons** (0.8% of zones): 21.1% of total CHR
-- **Top 50 hexagons** (2.1%): 32.9% of total CHR
-- **#1 URGENT zone** (Upparpet): 177,322 veh-hrs/day
-
-### Addiction Zones
-- **38 hexagons** (1.6%) with Location Memory > 0.5
-- These contain **80,493 violations** (38.7% of total)
-- Active on >50% of all observation days
-
-### XGBoost Model
-- **Top features:** is_no_parking (0.110), road_is_main (0.096), is_wrong_parking (0.094)
-- **Test R²:** 0.601 — violation type and road characteristics are stronger predictors than time
-
-### ACO Patrol Routes
-- **40 optimized routes** across 5 shifts from 8 depots
-- **25M total CHR recoverable** across all routes
-- Night shift yields highest CHR per route (longer shift, more stops)
-
----
-
-## Installation & Setup
-
-### Prerequisites
-- Python 3.10+
-- 8GB+ RAM recommended
-
-### Install
+> **Minimum time to get the dashboard running: ~5 minutes** (if data files are pre-built)
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/SamradhSahni/PARKVISION-AI.git
 cd PARKVISION-AI
 
-# Create and activate a virtual environment (optional but recommended)
+# 2. Create and activate a virtual environment
 python -m venv venv
-# Windows: venv\Scripts\activate
-# Mac/Linux: source venv/bin/activate
 
-# Install required dependencies
+# Windows
+venv\Scripts\activate
+
+# macOS / Linux
+source venv/bin/activate
+
+# 3. Install dependencies
 pip install -r requirements.txt
 
-# Configure API keys
-# Create a .env file in the project root directory and add:
-# GEMINI_API_KEY=your_gemini_api_key_here
-# TOMTOM_API_KEY=your_tomtom_api_key_here (optional)
-```
+# 4. Set up environment variables
+copy .env.example .env          # Windows
+# cp .env.example .env          # macOS/Linux
+# Then edit .env with your API keys (see Section 7)
 
-### Required Python Packages
+# 5. Start the dashboard server
+python -m uvicorn src.api_server:app --host 0.0.0.0 --port 8000
 
-```
-pandas>=2.0
-geopandas>=0.14
-numpy>=1.24
-scipy>=1.11
-scikit-learn>=1.3
-xgboost>=2.0
-h3>=3.7
-osmnx>=1.7
-shapely>=2.0
-pyarrow>=14.0
-fastapi>=0.104
-uvicorn>=0.24
-google-generativeai>=0.3
-joblib>=1.3
-python-dotenv>=1.0
-leaflet (CDN - no install needed)
-chart.js (CDN - no install needed)
+# 6. Open the dashboard
+# Visit http://localhost:8000 in your browser
 ```
 
 ---
 
-## Usage
+## 5. Prerequisites
 
-### Run Full Pipeline
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| **Python** | 3.10, 3.11, or 3.12 | Python 3.13 is NOT supported (h3, osmnx incompatibility) |
+| **pip** | 23+ | Run `python -m pip install --upgrade pip` |
+| **Git** | Any | For cloning |
+| **RAM** | 8 GB minimum | 16 GB recommended for pipeline runs |
+| **Disk** | ~3 GB | For data files, OSM cache, and model files |
+| **OS** | Windows 10+, Ubuntu 20.04+, macOS 12+ | All supported |
+| **Internet** | Required for first run | OSM road network download (~500 MB) |
+
+### API Keys Required
+
+| Key | Service | Where to get it | Required for |
+|-----|---------|-----------------|--------------|
+| `NVIDIA_API_KEY` | NVIDIA NIM | [build.nvidia.com](https://build.nvidia.com) | AI Chat (primary) |
+| `TOMTOM_API_KEY` | TomTom Maps | [developer.tomtom.com](https://developer.tomtom.com) | Night map tiles |
+| `GEMINI_API_KEY` | Google Gemini | [aistudio.google.com](https://aistudio.google.com) | AI Chat (fallback only) |
+
+> Only `NVIDIA_API_KEY` is required for AI chat. TomTom is optional (fallback to CartoDB tiles if missing). Gemini is kept as fallback.
+
+---
+
+## 6. Installation Steps
+
+### Step 1 — Clone the repository
+
+```bash
+git clone https://github.com/SamradhSahni/PARKVISION-AI.git
+cd PARKVISION-AI
+```
+
+### Step 2 — Create a virtual environment
+
+**Windows (Command Prompt or PowerShell)**
+```powershell
+python -m venv venv
+venv\Scripts\activate
+```
+
+**macOS / Linux**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+You should see `(venv)` in your terminal prompt.
+
+### Step 3 — Upgrade pip
+
+```bash
+python -m pip install --upgrade pip
+```
+
+### Step 4 — Install all dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+> This installs all packages with pinned versions. Total download: ~400 MB.
+> If you hit errors on `geopandas` or `pyogrio` on Windows, see the [Troubleshooting](#14-troubleshooting) section.
+
+### Step 5 — Set up environment variables
+
+```bash
+# Windows
+copy .env.example .env
+
+# macOS / Linux
+cp .env.example .env
+```
+
+Then open `.env` in any text editor and fill in your API keys:
+
+```env
+NVIDIA_API_KEY=nvapi-your-key-here
+TOMTOM_API_KEY=your-tomtom-key-here
+GEMINI_API_KEY=your-gemini-key-here   # optional fallback
+```
+
+### Step 6 — Verify the data files are present
+
+The processed data files should exist under `data/`. Run this to check:
+
+```bash
+python -c "
+import os
+files = [
+    'data/pcis_scored_violations.parquet',
+    'data/enforcement_priorities.parquet',
+    'data/predicted_violations.parquet',
+    'data/police_stations.geojson',
+    'output/patrol_routes.geojson',
+]
+for f in files:
+    status = 'OK' if os.path.exists(f) else 'MISSING'
+    print(f'{status}: {f}')
+"
+```
+
+If any files show `MISSING`, you need to run the full data pipeline (see Section 9).
+
+---
+
+## 7. Environment Variables (API Keys)
+
+Create a `.env` file in the project root (copy from `.env.example`):
+
+```env
+# NVIDIA NIM — Primary AI backend (required for AI Chat)
+# Get your free key at: https://build.nvidia.com
+NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# TomTom — Premium dark map tiles (optional, falls back to CartoDB)
+# Get your free key at: https://developer.tomtom.com
+TOMTOM_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Google Gemini — Fallback AI backend (optional)
+# Get your free key at: https://aistudio.google.com
+GEMINI_API_KEY=AIzaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+> **Security**: The `.env` file is listed in `.gitignore` and will never be committed to Git. Never share your API keys publicly.
+
+---
+
+## 8. Running the Dashboard
+
+### Start the server
+
+```bash
+# Make sure your venv is active first
+python -m uvicorn src.api_server:app --host 0.0.0.0 --port 8000
+```
+
+You should see:
+```
+INFO:     Started server process [XXXXX]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+```
+
+### Open the dashboard
+
+Open your browser and visit: **http://localhost:8000**
+
+### Navigate the dashboard
+
+Use the sidebar on the left. Hover over it to expand and see page names:
+
+| Icon | Page |
+|------|------|
+| [P] | Enforcement Planner |
+| [F] | Filter Hotspots |
+| [M] | Violation Map |
+| [S] | Station Comparison |
+| [T] | Temporal Patterns |
+| [G] | Gap Analysis |
+| [V] | Vehicle Profiles |
+| [W] | Weekday vs Weekend |
+| [A] | AI Chat |
+
+### Stop the server
+
+Press `Ctrl + C` in the terminal.
+
+---
+
+## 9. Running the Full Data Pipeline
+
+> **Only needed if you are starting from the raw CSV file** (e.g., replacing the data with new violation records).
+> If `data/` and `output/` are already populated, skip this section.
+
+### What the pipeline does
+
+The pipeline has 11 sequential stages:
+
+| Stage | Script | Description |
+|-------|--------|-------------|
+| 1 | `data_ingestion.py` | Clean and validate raw CSV, remove outliers, standardize columns |
+| 2 | `road_network.py` | Download Bengaluru road graph from OpenStreetMap (OSMnx) |
+| 3 | `spatial_indexing.py` | Assign H3 hexagonal indices (resolution 9), compute hex stats |
+| 4 | `hotspot_engine.py` | Run ST-DBSCAN at micro/meso/macro scales |
+| 5 | `hotspot_stats.py` | Getis-Ord Gi\* statistical validation |
+| 6 | `pcis_engine.py` | Compute PCIS scores with all 5 components |
+| 7 | `congestion_model.py` | Compute CHR, Location Memory scores, spillover analysis |
+| 8 | `enforcement_optimizer.py` | K-Means zone clustering, CHR-based priority ranking |
+| 9 | `patrol_router.py` | Generate shift-based patrol routes (GeoJSON) |
+| 10 | `prediction.py` | Train XGBoost model, generate next-week predictions |
+| 11 | `llm_agent.py` | Build NVIDIA NIM AI agent with live data context |
+
+### Run the complete pipeline
+
 ```bash
 python -m src.run_pipeline
 ```
 
-### Resume from a Stage
+This runs all stages in order. Expect 30–90 minutes depending on your machine (OSM download is the slowest step).
+
+### Run individual stages
+
 ```bash
-python -m src.run_pipeline --from 6    # Resume from PCIS scoring
+# Stage 1: Data ingestion only
+python -m src.data_ingestion
+
+# Stage 2: Road network (downloads ~500 MB OSM data)
+python -m src.road_network
+
+# Stage 3-6: Can be run individually too
+python -m src.spatial_indexing
+python -m src.hotspot_engine
+python -m src.hotspot_stats
+python -m src.pcis_engine
+
+# Stage 7-10
+python -m src.congestion_model
+python -m src.enforcement_optimizer
+python -m src.patrol_router
+python -m src.prediction
+
+# Test the AI agent interactively
+python -m src.llm_agent
+python -m src.llm_agent --demo
 ```
 
-### Run Single Stage
-```bash
-python -m src.run_pipeline --stage 8   # Run only prediction
+### Raw data file
+
+Place the raw violation CSV at the project root:
+```
+PARKVISION-AI/
+└── jan to may police violation_anonymized791b166.csv   ← place here
 ```
 
-### Force Re-run
+The filename must match exactly as specified in `config/settings.py`.
+
+---
+
+## 10. Dashboard Pages
+
+### Violation Map (`[M]`)
+
+The main map page with full-screen Leaflet view.
+
+**Layer Controls (top-left):**
+- **Heatmap** — Intensity map of violation density. Gradient: blue (low) → cyan → amber → red/white (high)
+- **Hexagons** — H3 resolution-9 hexagons colored by PCIS score
+- **Patrol Routes** — ACO-optimized routes rendered as dashed polylines
+- **Stations** — Green circle markers for all 54 police stations
+
+**When Patrol Routes are enabled**, a Shift Selector panel appears:
+- All Shifts / Morning (amber) / Midday (blue) / Afternoon (purple) / Evening (pink) / Night (cyan)
+
+**Analytics Panel (bottom-right):**
+- Mini tabs: Hourly bar chart / Daily bar chart / Priority tier donut
+
+---
+
+### Filter Hotspots (`[F]`)
+
+**Left panel filters:**
+- **Police Station** — Dropdown of all 54 stations
+- **Day of Week** — Toggle pills (Mon / Tue / Wed / Thu / Fri / Sat / Sun)
+- **Time of Day** — Hour bucket pills (Early 0-6h / Morning 6-10h / Midday 10-14h / Afternoon 14-17h / Evening 17-21h / Night 21-24h)
+- **Vehicle Type** — Dropdown (Car / Scooter / Motor Cycle / Passenger Auto / etc.)
+- **Priority Tier** — Pills (Urgent / High / Medium / Low)
+
+**Right panel:**
+- Card grid of matching hotspots (PCIS / Violations / CHR / Peak Hour per card)
+- Sort by: Priority Rank / PCIS / CHR / Violations
+- Active filter summary bar
+- Result count badge
+
+---
+
+### Enforcement Planner (`[P]`)
+
+**Configuration:**
+- Day of week (pills)
+- Shift start hour (slider 0–22)
+- Shift end hour (slider 1–24)
+- Number of officers (stepper 1–5)
+
+**Output (after "Generate Patrol Plan"):**
+- Color-coded markers on map for each officer's stops
+- Dashed polylines showing route order
+- Per-officer card showing: stop number / station name / ETA / expected violations
+
+**Algorithm:**
+1. Filter violations by day and hour window
+2. Aggregate by H3 hex — compute priority = `violation_count × PCIS × consistency`
+3. K-Means cluster into N officer zones
+4. Greedy nearest-neighbor routing within each zone
+5. Check feasibility (travel time + 20 min dwell per stop)
+
+---
+
+### AI Chat (`[A]`)
+
+**How it works:**
+- Powered by NVIDIA NIM — `meta/llama-3.3-70b-instruct`
+- Live data context (top stations, hourly patterns, vehicle types, predictions) injected into every request
+- Conversation history maintained across turns in the same session
+- "Reset Conversation" button clears server-side history
+
+**Quick prompt chips:**
+- Top priority station?
+- 4–7 AM spike explanation
+- Top hotspot hexagons
+- Worst vehicle type by congestion
+- Unusual patterns for review
+- What is PCIS?
+
+**Example questions it can answer:**
+- "Which stations have the highest CHR score?"
+- "Why is there a spike in violations at 4 AM?"
+- "Compare weekday vs weekend in Upparpet"
+- "Predict violations for next Monday"
+- "What does the PCIS proximity factor measure?"
+- "Which shift should I prioritize for Koramangala?"
+
+---
+
+## 11. API Reference
+
+The FastAPI backend runs on `http://localhost:8000`. All endpoints return JSON.
+
+### Core Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Serves the dashboard HTML |
+| GET | `/api/config` | Returns API key availability flags |
+| GET | `/api/summary` | City-wide stats (total violations, CHR, tiers, avg PCIS) |
+| GET | `/api/hotspots` | Top hotspots with full filter support |
+| GET | `/api/heatmap` | All hexagons for heatmap rendering |
+| GET | `/api/patrol-routes` | GeoJSON patrol routes, optionally filtered by `?shift=morning` |
+| GET | `/api/stations` | GeoJSON of all 54 police station locations |
+| GET | `/api/temporal/{area}` | Hourly/daily patterns for a station or `city` |
+| GET | `/api/predict` | XGBoost predictions for next 7 days |
+| GET | `/api/filter-options` | All dropdown/pill options (stations, vehicle types, days, hours) |
+
+### Feature Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/planner` | Generate enforcement patrol plan |
+| GET | `/api/station-comparison` | 6-metric scorecard for all stations |
+| GET | `/api/temporal-matrix` | 7×24 day-hour violation matrix |
+| GET | `/api/gap-analysis` | 3-method under-recording detection |
+| GET | `/api/vehicle-profiles` | Vehicle type breakdown per station |
+| GET | `/api/weekend-split` | Weekday vs weekend split per station |
+
+### AI Chat Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat` | Send a query to the AI agent |
+| POST | `/api/chat/reset` | Clear conversation history |
+
+### Hotspot Filter Parameters
+
+`GET /api/hotspots` supports:
+
+| Parameter | Type | Example | Description |
+|-----------|------|---------|-------------|
+| `n` | int | `?n=50` | Max results (1–500, default 50) |
+| `station` | str | `?station=Koramangala` | Filter by station name (partial match) |
+| `min_pcis` | float | `?min_pcis=0.6` | Minimum PCIS threshold |
+| `tier` | str | `?tier=URGENT` | Filter by priority tier |
+| `day` | str | `?day=Monday` | Filter by day of week |
+| `hour_start` | int | `?hour_start=6` | Filter by hour range start |
+| `hour_end` | int | `?hour_end=10` | Filter by hour range end |
+| `vehicle_type` | str | `?vehicle_type=SCOOTER` | Filter by vehicle type |
+
+### AI Chat Payload
+
 ```bash
-python -m src.run_pipeline --force     # Ignore checkpoints
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Which station needs the most enforcement support?"}'
 ```
 
-### Launch Dashboard
-```bash
-python -m uvicorn src.api_server:app --host 0.0.0.0 --port 8000
-# Open http://localhost:8000
-```
+### Planner Payload
 
-### Interactive LLM Chat
 ```bash
-python -m src.llm_agent               # Interactive mode
-python -m src.llm_agent --demo        # Run 5 demo queries
+curl -X POST http://localhost:8000/api/planner \
+  -H "Content-Type: application/json" \
+  -d '{
+    "day": "Monday",
+    "start_hour": 8,
+    "end_hour": 12,
+    "n_officers": 3
+  }'
 ```
 
 ---
 
-## API Reference
+## 12. Data Science Methodology
 
-| Endpoint | Method | Description |
-|:---------|:-------|:------------|
-| `/api/summary` | GET | Overall system statistics |
-| `/api/hotspots?n=50&station=X&tier=HIGH` | GET | Top hotspots by CHR |
-| `/api/pcis/{h3_index}` | GET | PCIS breakdown for hexagon |
-| `/api/heatmap` | GET | All hexagons for heatmap |
-| `/api/hex-geojson` | GET | H3 stats as GeoJSON |
-| `/api/patrol-routes?shift=morning` | GET | ACO patrol routes |
-| `/api/stations` | GET | Police station profiles |
-| `/api/temporal/{area}` | GET | Temporal patterns |
-| `/api/predict` | GET | Next-week predictions |
-| `/api/ripple-contours` | GET | Congestion ripple GeoJSON |
-| `/api/cluster-profiles` | GET | Cluster profiles GeoJSON |
-| `/api/chat` | POST | LLM query (body: `{"query": "..."}`) |
+### PCIS (Parking Congestion Impact Score)
 
----
+Five-component weighted score per H3 hexagon:
 
-## Data Files
+| Component | Weight | Formula |
+|-----------|--------|---------|
+| Capacity Reduction Factor | 30% | `vehicle_footprint_area / (lane_width × lane_length)` |
+| Proximity Factor | 20% | Distance-decay from nearest junction (1.0 at junction → 0.1 residential) |
+| Temporal Demand Multiplier | 20% | Demand curve by hour and weekday/weekend |
+| Vehicle Obstruction Factor | 15% | Movement hindrance per vehicle class |
+| Network Criticality | 15% | Road betweenness centrality (OSM graph) |
 
-### Intermediate Data (`data/`)
+**PCIS Tiers:**
 
-| File | Size | Description |
-|:-----|:-----|:------------|
-| `cleaned_violations.parquet` | 15.4 MB | Cleaned & normalized violations |
-| `enriched_violations.parquet` | 18.9 MB | Road-matched with network features |
-| `h3_hex_stats.parquet` | 274 KB | H3 hexagon aggregated statistics |
-| `hotspot_clusters.parquet` | 19.5 MB | ST-DBSCAN cluster assignments |
-| `cluster_profiles.parquet` | 76 KB | Cluster-level profiles |
-| `h3_hotspot_significance.parquet` | 319 KB | Gi* z-scores per hexagon |
-| `temporal_profiles.json` | 214 KB | Hourly/daily profiles per cluster |
-| `pcis_scored_violations.parquet` | 22.1 MB | PCIS-scored violations |
-| `h3_pcis_scores.parquet` | 188 KB | Hex-level PCIS aggregates |
-| `location_memory.parquet` | 120 KB | Location memory scores |
-| `spillover_analysis.parquet` | 32 KB | Cross-station spillover |
-| `predicted_violations.parquet` | 2.3 MB | Next-week predictions |
-| `enforcement_priorities.parquet` | 356 KB | CHR-ranked hex priorities |
-| `police_stations.geojson` | 48 KB | Station profiles + locations |
+| Tier | Range | Action |
+|------|-------|--------|
+| MONITOR | 0.0 – 0.2 | Routine monitoring |
+| LOW | 0.2 – 0.4 | Scheduled enforcement |
+| MEDIUM | 0.4 – 0.6 | Prioritized deployment |
+| HIGH | 0.6 – 0.8 | Immediate action |
+| URGENT | 0.8 – 1.0 | Emergency intervention |
 
-### Outputs (`output/`)
+### CHR (Congestion Hours Recovered)
 
-| File | Description |
-|:-----|:------------|
-| `h3_hex_stats.geojson` | Hex heatmap for dashboard |
-| `cluster_profiles.geojson` | Cluster polygons for map |
-| `ripple_contours.geojson` | Congestion ripple effect polygons |
-| `patrol_routes.geojson` | ACO-optimized patrol route lines |
-| `daily_brief.md` | Daily Enforcement Intelligence Brief |
-| `llm_demo_conversations.md` | LLM demo query results |
-
-### Models (`models/`)
-
-| File | Description |
-|:-----|:------------|
-| `violation_predictor.joblib` | Trained XGBoost model + feature list |
-| `model_metrics.json` | Train/test performance metrics |
-| `feature_importance.csv` | Feature importance rankings |
-
----
-
-## Configuration
-
-All parameters are centralized in `config/settings.py`:
-
-| Category | Key Parameters |
-|:---------|:---------------|
-| **PCIS Weights** | CR: 0.30, PF: 0.20, TDM: 0.20, VOF: 0.15, NC: 0.15 |
-| **ST-DBSCAN** | Micro: 50m/2h/5pts, Meso: 150m/2h/5pts, Macro: 500m/2h/5pts |
-| **H3 Resolution** | 9 (~174m edge length) |
-| **ACO** | 50 ants, 200 iterations, α=1.0, β=2.0, evaporation=0.5 |
-| **Shifts** | Morning 6-10, Midday 10-14, Afternoon 14-17, Evening 17-21, Night 21-6 |
-| **Road Capacity** | 1800 veh/hr/lane (HCM urban arterial) |
-| **Patrol Speed** | 20 km/h average city speed |
-
----
-
-## Technologies Used
-
-| Category | Technology |
-|:---------|:-----------|
-| **Spatial Analysis** | H3, OSMnx, GeoPandas, Shapely |
-| **Clustering** | ST-DBSCAN (custom), Getis-Ord Gi* |
-| **Machine Learning** | XGBoost, scikit-learn |
-| **Optimization** | Ant Colony Optimization (custom) |
-| **LLM** | Google Gemini 2.0 Flash (function calling) |
-| **Backend** | FastAPI, Uvicorn |
-| **Frontend** | Leaflet.js, Chart.js, h3-js |
-| **Data** | Pandas, PyArrow (Parquet), GeoJSON |
-
----
-
-## Project Structure
+Quantifies the congestion relief from one enforcement action:
 
 ```
-GridHack/
+CHR = flow_rate × delay_per_vehicle × vehicles_affected_per_hour
+```
+
+Units: vehicle-hours/day. Used as the primary enforcement ROI metric for ranking patrol priorities.
+
+### ST-DBSCAN Parameters
+
+| Scale | Spatial epsilon | Temporal epsilon | Min points |
+|-------|----------------|-----------------|------------|
+| Micro | 50 m | 2 hours | 5 |
+| Meso | 150 m | 2 hours | 5 |
+| Macro | 500 m | 2 hours | 5 |
+
+### Prediction Model
+
+XGBoost regressor with features:
+- Day of week (one-hot)
+- Hour of day
+- H3 hexagon (embedding)
+- Historical violation counts (lag features)
+- Road type (main/residential)
+- PCIS score
+
+---
+
+## 13. Project File Structure
+
+```
+PARKVISION-AI/
+├── .env                          # API keys (never committed)
+├── .env.example                  # Template for .env
+├── .gitignore
+├── requirements.txt              # All dependencies with pinned versions
+├── README.md
+├── PROJECT_FEATURES.md           # Feature specification
+│
 ├── config/
-│   ├── __init__.py
-│   └── settings.py              # Central configuration
+│   └── settings.py               # All constants, paths, PCIS weights
+│
 ├── src/
 │   ├── __init__.py
-│   ├── run_pipeline.py          # End-to-end pipeline runner
-│   ├── data_ingestion.py        # Stage 1: Ingest & clean
-│   ├── road_network.py          # Stage 2: Road matching
-│   ├── spatial_indexing.py       # Stage 3: H3 & POI
-│   ├── hotspot_engine.py        # Stage 4: ST-DBSCAN
-│   ├── hotspot_stats.py         # Stage 5: Gi* & temporal
-│   ├── pcis_engine.py           # Stage 6: PCIS scoring
-│   ├── congestion_model.py      # Stage 7: Shockwave & memory
-│   ├── prediction.py            # Stage 8: XGBoost
-│   ├── enforcement_optimizer.py  # Stage 9: CHR & stations
-│   ├── patrol_router.py         # Stage 10: ACO routes
-│   ├── llm_agent.py             # Gemini LLM agent
-│   └── api_server.py            # FastAPI dashboard backend
+│   ├── run_pipeline.py           # Master pipeline runner (runs all stages)
+│   ├── data_ingestion.py         # Stage 1: CSV cleaning and validation
+│   ├── road_network.py           # Stage 2: OSMnx road graph download
+│   ├── spatial_indexing.py       # Stage 3: H3 hex binning, hex stats
+│   ├── hotspot_engine.py         # Stage 4: ST-DBSCAN clustering
+│   ├── hotspot_stats.py          # Stage 5: Getis-Ord Gi* validation
+│   ├── pcis_engine.py            # Stage 6: PCIS scoring
+│   ├── congestion_model.py       # Stage 7: CHR + Location Memory
+│   ├── enforcement_optimizer.py  # Stage 8: K-Means + priority ranking
+│   ├── patrol_router.py          # Stage 9: Shift-based patrol routes
+│   ├── prediction.py             # Stage 10: XGBoost predictions
+│   ├── api_server.py             # FastAPI backend (20+ endpoints)
+│   └── llm_agent.py              # NVIDIA NIM AI agent
+│
 ├── dashboard/
-│   └── index.html               # Interactive web dashboard
-├── data/                        # Processed data files
-├── output/                      # GeoJSON, reports, brief
-├── models/                      # Trained ML models
-├── .env                         # API keys
-└── README.md                    # This file
+│   └── index.html                # Single-page dashboard (Leaflet + Chart.js)
+│
+├── data/                         # Processed parquet files (auto-generated)
+│   ├── pcis_scored_violations.parquet
+│   ├── enforcement_priorities.parquet
+│   ├── predicted_violations.parquet
+│   ├── police_stations.geojson
+│   └── ... (12 more files)
+│
+├── output/                       # GeoJSON and report outputs
+│   ├── patrol_routes.geojson
+│   ├── pcis_hotspots.geojson
+│   ├── cluster_profiles.geojson
+│   └── llm_demo_conversations.md
+│
+├── models/                       # Trained ML models
+│   └── violation_predictor.joblib
+│
+└── cache/                        # OSM tile cache (auto-generated)
 ```
 
 ---
 
-*Built for Bengaluru Traffic Police | PARKVISION AI Parking Congestion Intelligence System*
+## 14. Troubleshooting
+
+### `geopandas` or `pyogrio` install fails on Windows
+
+Use pre-built wheels from the Unofficial Windows Binaries:
+
+```powershell
+# Install in this order
+pip install wheel
+pip install pyproj
+pip install Fiona
+pip install geopandas
+```
+
+Or use conda:
+```bash
+conda install -c conda-forge geopandas pyogrio
+```
+
+### `h3` install fails
+
+```bash
+pip install h3==4.5.0 --no-build-isolation
+```
+
+### `osmnx` fails to download road network
+
+The OSM download requires internet access. If behind a proxy:
+```python
+# In config/settings.py, add:
+import os
+os.environ["HTTP_PROXY"] = "http://your-proxy:port"
+os.environ["HTTPS_PROXY"] = "http://your-proxy:port"
+```
+
+### AI Chat returns "Rate Limit Reached"
+
+Your NVIDIA NIM free-tier quota was hit. Solutions:
+1. Wait a few seconds and retry (NVIDIA resets per-minute)
+2. Check your rate limits at [build.nvidia.com](https://build.nvidia.com)
+3. The system automatically falls back to Gemini if `GEMINI_API_KEY` is set
+
+### Server fails to start — `ModuleNotFoundError`
+
+Make sure your virtual environment is activated:
+```powershell
+# Windows
+venv\Scripts\activate
+
+# Linux/macOS
+source venv/bin/activate
+
+# Then verify
+python -c "import fastapi; print('OK')"
+```
+
+### Dashboard loads but map tiles don't appear
+
+- TomTom key is missing or invalid → the map falls back to CartoDB dark tiles automatically
+- Check browser console (F12) for any tile 403 errors
+- Verify `TOMTOM_API_KEY` is set in `.env`
+
+### `data/pcis_scored_violations.parquet` not found
+
+You need to run the data pipeline first:
+```bash
+python -m src.run_pipeline
+```
+
+Or check that the raw CSV file is in the project root with the exact filename:
+```
+jan to may police violation_anonymized791b166.csv
+```
+
+### Port 8000 already in use
+
+```powershell
+# Windows — find and kill process on port 8000
+netstat -ano | findstr :8000
+taskkill /PID <pid_number> /F
+
+# Or use a different port
+python -m uvicorn src.api_server:app --host 0.0.0.0 --port 8080
+# Then open http://localhost:8080
+```
+
+### Slow startup (first run)
+
+The first request to each endpoint triggers lazy data loading from parquet files. This takes 3–10 seconds. Subsequent requests are instant. This is normal.
+
+---
+
+## Contributing
+
+Pull requests are welcome. For major changes, open an issue first to discuss what you'd like to change.
+
+## License
+
+MIT License — see `LICENSE` file for details.
+
+## Acknowledgements
+
+- **OpenStreetMap** — Road network data
+- **NVIDIA NIM** — LLaMA-3.3-70B inference
+- **H3 by Uber** — Hierarchical hexagonal indexing
+- **Leaflet.js** — Interactive mapping
+- **Chart.js** — Data visualization
+- **Bengaluru Traffic Police** — Violation data source

@@ -3,1320 +3,1292 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PARKVISION AI — Parking Congestion Intelligence</title>
-    <meta name="description" content="Real-time parking violation intelligence dashboard for Bengaluru Traffic Police powered by AI">
-    
-    <!-- Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>PARKVISION AI</title>
+    <meta name="description" content="AI-Driven Parking Hotspot Intelligence for Bengaluru Traffic Police">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>P</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Leaflet Heat -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- h3-js for hexagon rendering -->
     <script src="https://unpkg.com/h3-js@4.1.0/dist/h3-js.umd.js"></script>
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --bg-primary: #0a0e1a;
-            --bg-secondary: #111827;
-            --bg-card: #1a1f35;
-            --bg-glass: rgba(26, 31, 53, 0.85);
-            --border: rgba(255,255,255,0.06);
-            --text-primary: #f0f4ff;
-            --text-secondary: #8b95b0;
-            --text-muted: #5a6380;
-            --accent-blue: #3b82f6;
-            --accent-cyan: #06b6d4;
-            --accent-purple: #8b5cf6;
-            --accent-pink: #ec4899;
-            --accent-emerald: #10b981;
-            --accent-amber: #f59e0b;
-            --accent-red: #ef4444;
-            --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
-            --gradient-card: linear-gradient(145deg, rgba(59,130,246,0.08), rgba(139,92,246,0.05));
-            --shadow-lg: 0 25px 50px -12px rgba(0,0,0,0.4);
-            --radius: 16px;
-            --radius-sm: 10px;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            overflow-x: hidden;
-            min-height: 100vh;
-        }
-
-        /* ── HEADER ─────────────────────────── */
-        .header {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1000;
-            background: rgba(10, 14, 26, 0.75);
-            backdrop-filter: blur(24px) saturate(1.5);
-            border-bottom: 1px solid var(--border);
-            padding: 0 32px;
-            height: 64px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-icon {
-            width: 36px;
-            height: 36px;
-            background: var(--gradient-hero);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: 900;
-            color: white;
-        }
-
-        .logo-text {
-            font-weight: 800;
-            font-size: 20px;
-            background: var(--gradient-hero);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-        }
-
-        .logo-sub {
-            font-size: 11px;
-            color: var(--text-muted);
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .shift-selector {
-            display: flex;
-            background: var(--bg-card);
-            border-radius: 10px;
-            padding: 3px;
-            border: 1px solid var(--border);
-        }
-
-        .shift-btn {
-            padding: 6px 14px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-
-        .shift-btn.active {
-            background: var(--accent-blue);
-            color: white;
-            box-shadow: 0 2px 8px rgba(59,130,246,0.4);
-        }
-
-        .shift-btn:hover:not(.active) {
-            color: var(--text-primary);
-            background: rgba(255,255,255,0.05);
-        }
-
-        /* ── MAIN LAYOUT ────────────────────── */
-        .main {
-            margin-top: 64px;
-            display: grid;
-            grid-template-columns: 340px 1fr 360px;
-            grid-template-rows: auto 1fr;
-            height: calc(100vh - 64px);
-            gap: 0;
-        }
-
-        /* ── STATS BAR ──────────────────────── */
-        .stats-bar {
-            grid-column: 1 / -1;
-            display: flex;
-            gap: 16px;
-            padding: 16px 24px;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            overflow-x: auto;
-        }
-
-        .stat-card {
-            flex: 1;
-            min-width: 150px;
-            background: var(--gradient-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 14px 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            transition: transform 0.2s, border-color 0.3s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(59,130,246,0.3);
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-        }
-
-        .stat-value {
-            font-size: 26px;
-            font-weight: 800;
-            letter-spacing: -1px;
-            line-height: 1;
-        }
-
-        .stat-value.blue { color: var(--accent-blue); }
-        .stat-value.cyan { color: var(--accent-cyan); }
-        .stat-value.purple { color: var(--accent-purple); }
-        .stat-value.emerald { color: var(--accent-emerald); }
-        .stat-value.amber { color: var(--accent-amber); }
-        .stat-value.red { color: var(--accent-red); }
-
-        .stat-sub {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        /* ── LEFT PANEL (Hotspots) ──────────── */
-        .panel-left {
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .panel-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .panel-title {
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: -0.3px;
-        }
-
-        .panel-badge {
-            font-size: 11px;
-            padding: 3px 10px;
-            background: rgba(59,130,246,0.15);
-            color: var(--accent-blue);
-            border-radius: 20px;
-            font-weight: 600;
-        }
-
-        .hotspot-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-        }
-
-        .hotspot-list::-webkit-scrollbar { width: 4px; }
-        .hotspot-list::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
-
-        .hotspot-item {
-            padding: 12px 14px;
-            border-radius: var(--radius-sm);
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-bottom: 4px;
-        }
-
-        .hotspot-item:hover {
-            background: rgba(59,130,246,0.06);
-            border-color: rgba(59,130,246,0.15);
-        }
-
-        .hotspot-item.selected {
-            background: rgba(59,130,246,0.1);
-            border-color: rgba(59,130,246,0.3);
-        }
-
-        .hotspot-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 6px;
-        }
-
-        .hotspot-rank {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-muted);
-        }
-
-        .hotspot-tier {
-            font-size: 10px;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .tier-URGENT { background: rgba(239,68,68,0.15); color: #ef4444; }
-        .tier-HIGH { background: rgba(245,158,11,0.15); color: #f59e0b; }
-        .tier-MEDIUM { background: rgba(59,130,246,0.15); color: #3b82f6; }
-        .tier-LOW { background: rgba(16,185,129,0.15); color: #10b981; }
-        .tier-MONITOR { background: rgba(107,114,128,0.15); color: #6b7280; }
-
-        .hotspot-station {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-        }
-
-        .hotspot-meta {
-            display: flex;
-            gap: 12px;
-            font-size: 11px;
-            color: var(--text-secondary);
-        }
-
-        .hotspot-meta span { display: flex; align-items: center; gap: 3px; }
-
-        .chr-bar {
-            height: 3px;
-            background: rgba(255,255,255,0.04);
-            border-radius: 2px;
-            margin-top: 8px;
-            overflow: hidden;
-        }
-
-        .chr-fill {
-            height: 100%;
-            border-radius: 2px;
-            background: var(--gradient-hero);
-            transition: width 0.6s ease;
-        }
-
-        /* ── MAP ────────────────────────────── */
-        .map-container {
-            position: relative;
-        }
-
-        #map {
-            width: 100%;
-            height: 100%;
-            background: #0d1117;
-        }
-
-        .map-overlay {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            z-index: 800;
-            display: flex;
-            gap: 6px;
-        }
-
-        .map-btn {
-            padding: 8px 14px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-secondary);
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-
-        .map-btn.active {
-            background: rgba(59,130,246,0.2);
-            color: var(--accent-blue);
-            border-color: rgba(59,130,246,0.3);
-        }
-
-        .map-btn:hover { color: var(--text-primary); }
-
-        .map-legend {
-            position: absolute;
-            bottom: 24px;
-            left: 16px;
-            z-index: 800;
-            background: var(--bg-glass);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 14px 18px;
-        }
-
-        .legend-title {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 11px;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-        }
-
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        /* ── RIGHT PANEL (Charts + Chat) ───── */
-        .panel-right {
-            background: var(--bg-secondary);
-            border-left: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .tab-bar {
-            display: flex;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.2s;
-            border-bottom: 2px solid transparent;
-        }
-
-        .tab-btn.active {
-            color: var(--accent-blue);
-            border-bottom-color: var(--accent-blue);
-        }
-
-        .tab-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-        }
-
-        .tab-content::-webkit-scrollbar { width: 4px; }
-        .tab-content::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
-
-        .tab-pane { display: none; }
-        .tab-pane.active { display: block; }
-
-        .chart-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        .chart-title {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 12px;
-        }
-
-        .chart-canvas { max-height: 200px; }
-
-        /* ── CHAT ───────────────────────────── */
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 4px 0;
-        }
-
-        .chat-msg {
-            margin-bottom: 12px;
-            padding: 10px 14px;
-            border-radius: 12px;
-            font-size: 13px;
-            line-height: 1.5;
-            max-width: 95%;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .chat-msg.user {
-            background: rgba(59,130,246,0.15);
-            border: 1px solid rgba(59,130,246,0.2);
-            margin-left: auto;
-            color: var(--text-primary);
-        }
-
-        .chat-msg.bot {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-        }
-
-        .chat-msg.bot strong { color: var(--text-primary); }
-
-        .chat-input-bar {
-            display: flex;
-            gap: 8px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border);
-        }
-
-        .chat-input {
-            flex: 1;
-            padding: 10px 14px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: var(--text-primary);
-            font-size: 13px;
-            font-family: inherit;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .chat-input:focus { border-color: var(--accent-blue); }
-
-        .chat-send {
-            padding: 10px 18px;
-            background: var(--accent-blue);
-            border: none;
-            border-radius: 10px;
-            color: white;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-            transition: background 0.2s;
-        }
-
-        .chat-send:hover { background: #2563eb; }
-        .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        /* ── PCIS Detail Card ───────────────── */
-        .detail-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 16px;
-            margin-bottom: 12px;
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-            font-size: 12px;
-        }
-
-        .detail-label { color: var(--text-muted); font-weight: 500; }
-        .detail-value { color: var(--text-primary); font-weight: 600; }
-
-        /* ── Loading spinner ────────────────── */
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--border);
-            border-top-color: var(--accent-blue);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            display: inline-block;
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* ── Responsive ─────────────────────── */
-        @media (max-width: 1200px) {
-            .main {
-                grid-template-columns: 280px 1fr 300px;
-            }
-        }
-
-        @media (max-width: 900px) {
-            .main {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto 400px auto;
-            }
-            .panel-left, .panel-right { max-height: 350px; }
-        }
-    </style>
+<style>
+:root {
+    --bg:#0a0e1a; --bg2:#111827; --card:#1a1f35;
+    --glass:rgba(26,31,53,0.92); --border:rgba(255,255,255,0.06);
+    --t1:#f0f4ff; --t2:#8b95b0; --t3:#5a6380;
+    --blue:#3b82f6; --cyan:#06b6d4; --purple:#8b5cf6;
+    --pink:#ec4899; --green:#10b981; --amber:#f59e0b;
+    --red:#ef4444;
+    --grad:linear-gradient(135deg,#3b82f6,#8b5cf6,#ec4899);
+    --r:14px; --rs:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);overflow:hidden;height:100vh;}
+
+/* SIDEBAR */
+.sidebar{position:fixed;top:0;left:0;height:100vh;width:58px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:1000;transition:width .22s cubic-bezier(.4,0,.2,1);overflow:hidden;}
+.sidebar:hover{width:210px;}
+.sb-logo{height:58px;display:flex;align-items:center;padding:0 14px;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.sb-logo-icon{width:30px;height:30px;min-width:30px;background:var(--grad);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;}
+.sb-logo-text{font-weight:800;font-size:13px;white-space:nowrap;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;opacity:0;transition:opacity .12s;}
+.sidebar:hover .sb-logo-text{opacity:1;}
+.sb-nav{flex:1;padding:6px 0;overflow:hidden;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer;border-left:3px solid transparent;transition:all .18s;white-space:nowrap;}
+.nav-item:hover{background:rgba(59,130,246,.07);border-left-color:rgba(59,130,246,.25);}
+.nav-item.active{background:rgba(59,130,246,.11);border-left-color:var(--blue);}
+.nav-icon{font-size:16px;min-width:18px;text-align:center;line-height:1;font-style:normal;}
+.nav-label{font-size:11px;font-weight:600;color:var(--t2);opacity:0;transition:opacity .12s;}
+.nav-item.active .nav-label{color:var(--blue);}
+.sidebar:hover .nav-label{opacity:1;}
+
+/* APP */
+.app{margin-left:58px;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+.page{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.page.active{display:flex;}
+
+/* TOPBAR */
+.topbar{height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(10,14,26,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);flex-shrink:0;}
+.topbar-title{font-size:15px;font-weight:700;}
+.topbar-sub{font-size:11px;color:var(--t3);margin-top:1px;}
+
+/* BUTTONS */
+.btn{padding:8px 16px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:#2563eb;transform:translateY(-1px);}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+.btn-ghost{background:var(--card);color:var(--t2);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--t1);border-color:rgba(59,130,246,.3);}
+
+/* FORM */
+.form-label{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px;display:block;text-transform:uppercase;letter-spacing:.5px;}
+.form-select,.form-input{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--t1);font-size:12px;font-family:inherit;outline:none;transition:border-color .18s;}
+.form-select:focus,.form-input:focus{border-color:var(--blue);}
+.form-select option{background:#1a1f35;}
+.form-group{margin-bottom:14px;}
+
+/* PILLS */
+.pill-group{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
+.pill{padding:4px 10px;border-radius:18px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--t2);background:transparent;transition:all .18s;font-family:inherit;}
+.pill:hover{border-color:var(--blue);color:var(--blue);}
+.pill.active{background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.4);color:var(--blue);}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;}
+.card-title{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+.stat-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;font-weight:600;}
+.stat-val{font-size:24px;font-weight:800;letter-spacing:-1px;line-height:1.2;margin-top:2px;}
+.stat-sub{font-size:10px;color:var(--t2);margin-top:2px;}
+.c-blue{color:var(--blue);} .c-cyan{color:var(--cyan);} .c-purple{color:var(--purple);}
+.c-green{color:var(--green);} .c-amber{color:var(--amber);} .c-red{color:var(--red);}
+
+/* SCROLLABLE PANEL */
+.panel{overflow-y:auto;padding:20px;}
+.panel::-webkit-scrollbar{width:4px;}
+.panel::-webkit-scrollbar-thumb{background:var(--t3);border-radius:2px;}
+
+/* MAP BUTTONS */
+.map-btn{padding:7px 11px;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:7px;color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;}
+.map-btn:hover{color:var(--t1);border-color:rgba(59,130,246,.3);}
+.map-btn.active{background:rgba(59,130,246,.18);color:var(--blue);border-color:rgba(59,130,246,.4);}
+
+/* MAP LEGEND */
+.map-legend{position:absolute;z-index:800;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;}
+.legend-title{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--t2);margin-bottom:2px;}
+.legend-dot{width:8px;height:8px;border-radius:50%;}
+
+/* TIER BADGES */
+.tier-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px;}
+.tier-URGENT{background:rgba(239,68,68,.14);color:#ef4444;}
+.tier-HIGH{background:rgba(245,158,11,.14);color:#f59e0b;}
+.tier-MEDIUM{background:rgba(59,130,246,.14);color:#3b82f6;}
+.tier-LOW{background:rgba(16,185,129,.14);color:#10b981;}
+.tier-MONITOR{background:rgba(107,114,128,.14);color:#6b7280;}
+
+/* DETAIL ROWS */
+.d-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:12px;}
+.d-lbl{color:var(--t3);font-weight:500;}
+.d-val{color:var(--t1);font-weight:600;}
+
+/* CHAT */
+.chat-msgs{flex:1;overflow-y:auto;padding-bottom:4px;}
+.chat-msgs::-webkit-scrollbar{width:3px;}
+.chat-msgs::-webkit-scrollbar-thumb{background:var(--t3);border-radius:2px;}
+.chat-msg{margin-bottom:10px;padding:9px 13px;border-radius:10px;font-size:12px;line-height:1.55;max-width:95%;animation:fadeUp .22s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.chat-msg.user{background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.2);margin-left:auto;color:var(--t1);}
+.chat-msg.bot{background:var(--card);border:1px solid var(--border);color:var(--t2);}
+.chat-msg.bot strong{color:var(--t1);}
+.chat-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
+.chip{padding:4px 9px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.18);border-radius:14px;font-size:10px;font-weight:600;color:var(--blue);cursor:pointer;transition:all .18s;font-family:inherit;}
+.chip:hover{background:rgba(59,130,246,.15);}
+.chat-bar{display:flex;gap:6px;padding-top:8px;border-top:1px solid var(--border);}
+.chat-input{flex:1;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-size:12px;font-family:inherit;outline:none;transition:border-color .18s;}
+.chat-input:focus{border-color:var(--blue);}
+.chat-send{padding:8px 13px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .18s;}
+.chat-send:hover{background:#2563eb;}
+.chat-send:disabled{opacity:.4;cursor:not-allowed;}
+.chat-clear-btn{padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--t2);font-size:12px;cursor:pointer;font-family:inherit;transition:all .18s;}
+.chat-clear-btn:hover{color:var(--red);border-color:rgba(239,68,68,.3);}
+.spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* CHART */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:10px;}
+.chart-title{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;}
+
+/* PLANNER */
+.planner-layout{display:grid;grid-template-columns:300px 1fr;flex:1;overflow:hidden;}
+.planner-controls{border-right:1px solid var(--border);overflow-y:auto;padding:18px;}
+.planner-controls::-webkit-scrollbar{width:3px;}
+.planner-controls::-webkit-scrollbar-thumb{background:var(--t3);border-radius:2px;}
+.officer-card{border-radius:var(--rs);border:1px solid var(--border);padding:12px;margin-bottom:8px;}
+.officer-cards{padding:10px;overflow-y:auto;max-height:220px;background:var(--bg2);border-top:1px solid var(--border);}
+.officer-cards::-webkit-scrollbar{width:3px;}
+.stepper{display:flex;align-items:center;gap:10px;}
+.stepper-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--t1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;}
+.stepper-btn:hover{border-color:var(--blue);color:var(--blue);}
+.stepper-val{font-size:18px;font-weight:800;color:var(--blue);min-width:24px;text-align:center;}
+
+/* DATA TABLE */
+.data-table{width:100%;border-collapse:collapse;font-size:12px;}
+.data-table th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);color:var(--t3);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none;}
+.data-table th:hover{color:var(--blue);}
+.data-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.025);color:var(--t2);}
+.data-table tr:hover td{background:rgba(59,130,246,.03);}
+.data-table td:first-child{color:var(--t1);font-weight:600;}
+.score-bar{height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden;width:50px;display:inline-block;vertical-align:middle;margin-left:5px;}
+.score-fill{height:100%;border-radius:2px;}
+
+/* BAR ITEMS */
+.bar-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-size:11px;}
+.bar-name{width:160px;color:var(--t1);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bar-track{flex:1;height:7px;background:rgba(255,255,255,.04);border-radius:3px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;}
+.bar-val{width:32px;text-align:right;color:var(--t3);font-weight:600;}
+
+/* NOTE CARD */
+.note-card{background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.18);border-radius:var(--rs);padding:12px 14px;margin-bottom:14px;}
+.note-card-title{font-size:11px;font-weight:700;color:var(--amber);margin-bottom:3px;}
+.note-card-text{font-size:11px;color:var(--t2);line-height:1.55;}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.page-layout{flex:1;overflow-y:auto;padding:20px;}
+.page-layout::-webkit-scrollbar{width:4px;}
+.page-layout::-webkit-scrollbar-thumb{background:var(--t3);border-radius:2px;}
+
+/* HEATMAP GRID */
+.hm-cell{aspect-ratio:1;border-radius:3px;cursor:default;position:relative;}
+.hm-cell:hover::after{content:attr(title);position:absolute;top:-26px;left:50%;transform:translateX(-50%);background:#000;color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;white-space:nowrap;z-index:10;pointer-events:none;}
+
+/* METHOD CARD */
+.method-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;}
+</style>
 </head>
 <body>
 
-<!-- ═══ HEADER ═══ -->
-<header class="header" id="header">
-    <div class="logo">
-        <div class="logo-icon">P</div>
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+    <div class="sb-logo">
+        <div class="sb-logo-icon">P</div>
+        <span class="sb-logo-text">PARKVISION AI</span>
+    </div>
+    <div class="sb-nav">
+        <div class="nav-item" onclick="showPage('planner')" id="nav-planner">
+            <span class="nav-icon">[P]</span><span class="nav-label">Enforcement Planner</span>
+        </div>
+        <div class="nav-item" onclick="showPage('hotspots')" id="nav-hotspots">
+            <span class="nav-icon">[F]</span><span class="nav-label">Filter Hotspots</span>
+        </div>
+        <div class="nav-item active" onclick="showPage('map')" id="nav-map">
+            <span class="nav-icon">[M]</span><span class="nav-label">Violation Map</span>
+        </div>
+        <div class="nav-item" onclick="showPage('stations')" id="nav-stations">
+            <span class="nav-icon">[S]</span><span class="nav-label">Station Comparison</span>
+        </div>
+        <div class="nav-item" onclick="showPage('temporal')" id="nav-temporal">
+            <span class="nav-icon">[T]</span><span class="nav-label">Temporal Patterns</span>
+        </div>
+        <div class="nav-item" onclick="showPage('gaps')" id="nav-gaps">
+            <span class="nav-icon">[G]</span><span class="nav-label">Gap Analysis</span>
+        </div>
+        <div class="nav-item" onclick="showPage('vehicles')" id="nav-vehicles">
+            <span class="nav-icon">[V]</span><span class="nav-label">Vehicle Profiles</span>
+        </div>
+        <div class="nav-item" onclick="showPage('weekend')" id="nav-weekend">
+            <span class="nav-icon">[W]</span><span class="nav-label">Weekday vs Weekend</span>
+        </div>
+        <div class="nav-item" onclick="showPage('chat')" id="nav-chat">
+            <span class="nav-icon">[A]</span><span class="nav-label">AI Chat</span>
+        </div>
+    </div>
+</nav>
+
+<div class="app">
+
+<!-- PAGE: VIOLATION MAP (default) -->
+<div class="page active" id="page-map">
+    <div class="topbar">
         <div>
-            <div class="logo-text">PARKVISION AI</div>
-            <div class="logo-sub">Parking Congestion Intelligence</div>
+            <div class="topbar-title">Violation Map</div>
+            <div class="topbar-sub">Toggle heatmap, hexagons, patrol routes and stations</div>
+        </div>
+        <div style="display:flex;gap:20px;align-items:center;">
+            <div style="text-align:center;"><div class="stat-lbl">Violations</div><div style="font-size:15px;font-weight:800;color:var(--blue);" id="mapStatViolations">--</div></div>
+            <div style="text-align:center;"><div class="stat-lbl">CHR</div><div style="font-size:15px;font-weight:800;color:var(--purple);" id="mapStatCHR">--</div></div>
+            <div style="text-align:center;"><div class="stat-lbl">Urgent+High</div><div style="font-size:15px;font-weight:800;color:var(--red);" id="mapStatAlerts">--</div></div>
         </div>
     </div>
-    <div class="header-actions">
-        <div class="shift-selector" id="shiftSelector">
-            <button class="shift-btn active" data-shift="all">All</button>
-            <button class="shift-btn" data-shift="morning">Morning</button>
-            <button class="shift-btn" data-shift="midday">Midday</button>
-            <button class="shift-btn" data-shift="evening">Evening</button>
-            <button class="shift-btn" data-shift="night">Night</button>
+    <div style="flex:1;position:relative;overflow:hidden;">
+        <div id="map" style="width:100%;height:100%;"></div>
+        <!-- Layer controls -->
+        <div style="position:absolute;top:12px;left:12px;z-index:800;display:flex;flex-direction:column;gap:5px;">
+            <button class="map-btn active" id="btnHeatmap" onclick="toggleMapLayer('heatmap',this)">Heatmap</button>
+            <button class="map-btn" id="btnHexagons" onclick="toggleMapLayer('hexagons',this)">Hexagons</button>
+            <button class="map-btn" id="btnRoutes" onclick="toggleMapLayer('routes',this)">Patrol Routes</button>
+            <button class="map-btn" id="btnStations" onclick="toggleMapLayer('stations',this)">Stations</button>
         </div>
-    </div>
-</header>
-
-<!-- ═══ MAIN LAYOUT ═══ -->
-<main class="main">
-    <!-- Stats Bar -->
-    <div class="stats-bar" id="statsBar">
-        <div class="stat-card">
-            <div class="stat-label">Total Violations</div>
-            <div class="stat-value blue" id="statViolations">—</div>
-            <div class="stat-sub">Jan – May 2024</div>
+        <!-- Shift selector (shows when routes active) -->
+        <div id="routeShiftPanel" style="position:absolute;top:12px;left:148px;z-index:800;display:none;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;min-width:120px;">
+            <div style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Patrol Shift</div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+                <button class="map-btn active" id="shiftAll" onclick="selectRouteShift('all',this)">All Shifts</button>
+                <button class="map-btn" id="shiftMorning" onclick="selectRouteShift('morning',this)" style="color:#f59e0b;">Morning</button>
+                <button class="map-btn" id="shiftMidday" onclick="selectRouteShift('midday',this)" style="color:#3b82f6;">Midday</button>
+                <button class="map-btn" id="shiftAfternoon" onclick="selectRouteShift('afternoon',this)" style="color:#8b5cf6;">Afternoon</button>
+                <button class="map-btn" id="shiftEvening" onclick="selectRouteShift('evening',this)" style="color:#ec4899;">Evening</button>
+                <button class="map-btn" id="shiftNight" onclick="selectRouteShift('night',this)" style="color:#06b6d4;">Night</button>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">Active Hexagons</div>
-            <div class="stat-value cyan" id="statHexagons">—</div>
-            <div class="stat-sub">H3 resolution 9</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Recoverable CHR</div>
-            <div class="stat-value purple" id="statCHR">—</div>
-            <div class="stat-sub">vehicle-hours/day</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Avg PCIS</div>
-            <div class="stat-value amber" id="statPCIS">—</div>
-            <div class="stat-sub">Congestion Impact</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Police Stations</div>
-            <div class="stat-value emerald" id="statStations">54</div>
-            <div class="stat-sub">Bengaluru</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Priority Alerts</div>
-            <div class="stat-value red" id="statAlerts">—</div>
-            <div class="stat-sub">Urgent + High</div>
-        </div>
-    </div>
-
-    <!-- Left Panel — Hotspot List -->
-    <aside class="panel-left">
-        <div class="panel-header">
-            <span class="panel-title">Enforcement Priorities</span>
-            <span class="panel-badge" id="hotspotCount">Loading...</span>
-        </div>
-        <div class="hotspot-list" id="hotspotList"></div>
-    </aside>
-
-    <!-- Center — Map -->
-    <section class="map-container">
-        <div id="map"></div>
-        <div class="map-overlay">
-            <button class="map-btn active" data-layer="heatmap" id="btnHeatmap">Heatmap</button>
-            <button class="map-btn" data-layer="hexagons" id="btnHexagons">Hexagons</button>
-            <button class="map-btn" data-layer="routes" id="btnRoutes">Patrol Routes</button>
-            <button class="map-btn" data-layer="stations" id="btnStations">Stations</button>
-        </div>
-        <div class="map-legend">
+        <!-- PCIS Legend -->
+        <div class="map-legend" style="bottom:20px;left:12px;">
             <div class="legend-title">PCIS Impact</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Catastrophic (>0.8)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Catastrophic (&gt;0.8)</div>
             <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Critical (0.6-0.8)</div>
             <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>High (0.4-0.6)</div>
             <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Moderate (0.2-0.4)</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div>Low (<0.2)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div>Low (&lt;0.2)</div>
         </div>
-    </section>
-
-    <!-- Right Panel — Charts + Chat -->
-    <aside class="panel-right">
-        <div class="tab-bar">
-            <button class="tab-btn active" data-tab="analytics" id="tabAnalytics">Analytics</button>
-            <button class="tab-btn" data-tab="detail" id="tabDetail">Detail</button>
-            <button class="tab-btn" data-tab="chat" id="tabChat">AI Chat</button>
-        </div>
-
-        <!-- Analytics Tab -->
-        <div class="tab-content">
-            <div class="tab-pane active" id="paneAnalytics">
-                <div class="chart-card">
-                    <div class="chart-title">Hourly Violation Distribution</div>
-                    <canvas id="chartHourly" class="chart-canvas"></canvas>
-                </div>
-                <div class="chart-card">
-                    <div class="chart-title">Daily Violation Distribution</div>
-                    <canvas id="chartDaily" class="chart-canvas"></canvas>
-                </div>
-                <div class="chart-card">
-                    <div class="chart-title">Next Week Predictions</div>
-                    <canvas id="chartPredict" class="chart-canvas"></canvas>
-                </div>
-                <div class="chart-card">
-                    <div class="chart-title">Priority Tier Distribution</div>
-                    <canvas id="chartTiers" class="chart-canvas"></canvas>
+        <!-- Mini analytics panel -->
+        <div style="position:absolute;bottom:20px;right:12px;z-index:800;width:260px;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--rs);">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);">
+                <span style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;">Analytics</span>
+                <div style="display:flex;gap:2px;">
+                    <button class="map-btn active" id="miniTabHourly" onclick="switchMiniTab('Hourly',this)" style="font-size:9px;padding:3px 6px;">Hourly</button>
+                    <button class="map-btn" id="miniTabDaily" onclick="switchMiniTab('Daily',this)" style="font-size:9px;padding:3px 6px;">Daily</button>
+                    <button class="map-btn" id="miniTabTiers" onclick="switchMiniTab('Tiers',this)" style="font-size:9px;padding:3px 6px;">Tiers</button>
                 </div>
             </div>
+            <div style="padding:8px;">
+                <div id="miniHourly"><canvas id="chartHourly" style="max-height:110px;"></canvas></div>
+                <div id="miniDaily" style="display:none;"><canvas id="chartDaily" style="max-height:110px;"></canvas></div>
+                <div id="miniTiers" style="display:none;"><canvas id="chartTiers" style="max-height:110px;"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-            <!-- Detail Tab -->
-            <div class="tab-pane" id="paneDetail">
-                <div id="detailContent">
-                    <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px 20px;">
-                        Click on a hotspot to see its PCIS breakdown and enforcement details.
-                    </p>
+<!-- PAGE: FILTER HOTSPOTS -->
+<div class="page" id="page-hotspots">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title">Filter Hotspots</div>
+            <div class="topbar-sub">Filter enforcement priorities by station, day, time, and vehicle type</div>
+        </div>
+        <span id="filterResultBadge" style="font-size:12px;color:var(--t2);background:var(--card);padding:5px 12px;border-radius:20px;border:1px solid var(--border);"></span>
+    </div>
+    <div style="flex:1;display:grid;grid-template-columns:280px 1fr;overflow:hidden;">
+        <!-- LEFT: filters -->
+        <div style="border-right:1px solid var(--border);overflow-y:auto;padding:18px;background:var(--bg2);">
+            <div class="form-group">
+                <label class="form-label">Police Station</label>
+                <select class="form-select" id="f2Station">
+                    <option value="">All Stations</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Day of Week</label>
+                <div class="pill-group" id="f2Days">
+                    <button class="pill" onclick="toggleF2Day(this,'Monday')">Mon</button>
+                    <button class="pill" onclick="toggleF2Day(this,'Tuesday')">Tue</button>
+                    <button class="pill" onclick="toggleF2Day(this,'Wednesday')">Wed</button>
+                    <button class="pill" onclick="toggleF2Day(this,'Thursday')">Thu</button>
+                    <button class="pill" onclick="toggleF2Day(this,'Friday')">Fri</button>
+                    <button class="pill" onclick="toggleF2Day(this,'Saturday')">Sat</button>
+                    <button class="pill" onclick="toggleF2Day(this,'Sunday')">Sun</button>
                 </div>
             </div>
+            <div class="form-group" style="margin-top:8px;">
+                <label class="form-label">Time of Day</label>
+                <div class="pill-group" id="f2Hours">
+                    <button class="pill" onclick="toggleF2Hour(this,0,6)">Early (0-6h)</button>
+                    <button class="pill" onclick="toggleF2Hour(this,6,10)">Morning (6-10h)</button>
+                    <button class="pill" onclick="toggleF2Hour(this,10,14)">Midday (10-14h)</button>
+                    <button class="pill" onclick="toggleF2Hour(this,14,17)">Afternoon (14-17h)</button>
+                    <button class="pill" onclick="toggleF2Hour(this,17,21)">Evening (17-21h)</button>
+                    <button class="pill" onclick="toggleF2Hour(this,21,24)">Night (21-24h)</button>
+                </div>
+            </div>
+            <div class="form-group" style="margin-top:8px;">
+                <label class="form-label">Vehicle Type</label>
+                <select class="form-select" id="f2Vehicle">
+                    <option value="">All Types</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top:8px;">
+                <label class="form-label">Priority Tier</label>
+                <div class="pill-group">
+                    <button class="pill" onclick="toggleF2Tier(this,'URGENT')">Urgent</button>
+                    <button class="pill" onclick="toggleF2Tier(this,'HIGH')">High</button>
+                    <button class="pill" onclick="toggleF2Tier(this,'MEDIUM')">Medium</button>
+                    <button class="pill" onclick="toggleF2Tier(this,'LOW')">Low</button>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="applyHotspotFilters()">Apply Filters</button>
+            <button class="btn btn-ghost" style="width:100%;margin-top:7px;" onclick="clearHotspotFilters()">Clear All</button>
+            <div id="activeFiltersSummary" style="display:none;margin-top:14px;padding:10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--rs);font-size:11px;color:var(--t2);">
+                <div style="font-weight:700;color:var(--blue);margin-bottom:3px;">Active filters:</div>
+                <div id="activeFiltersText"></div>
+            </div>
+        </div>
+        <!-- RIGHT: results -->
+        <div style="display:flex;flex-direction:column;overflow:hidden;">
+            <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg2);flex-shrink:0;">
+                <span style="font-size:12px;font-weight:700;">Results</span>
+                <div style="display:flex;gap:7px;align-items:center;">
+                    <span style="font-size:11px;color:var(--t3);">Sort:</span>
+                    <select class="form-select" id="f2SortKey" onchange="sortFilterResults()" style="width:140px;padding:5px 8px;font-size:11px;">
+                        <option value="priority_rank">Priority Rank</option>
+                        <option value="pcis_mean">PCIS Score</option>
+                        <option value="chr">CHR Score</option>
+                        <option value="violation_count">Violations</option>
+                    </select>
+                </div>
+            </div>
+            <div style="flex:1;overflow-y:auto;padding:14px;" id="hotspotResults">
+                <div style="color:var(--t3);font-size:13px;text-align:center;padding:60px 20px;">Loading hotspots...</div>
+            </div>
+        </div>
+    </div>
+</div>
 
-            <!-- Chat Tab -->
-            <div class="tab-pane" id="paneChat">
-                <div class="chat-container">
-                    <div class="chat-messages" id="chatMessages">
-                        <div class="chat-msg bot">
-                            <strong>PARKVISION AI</strong><br>
-                            Hello! I'm your parking intelligence assistant. Ask me anything about Bengaluru's parking violations, hotspots, enforcement routes, or predictions.
-                        </div>
-                    </div>
-                    <div class="chat-input-bar">
-                        <input class="chat-input" id="chatInput" placeholder="Ask about parking violations..." />
-                        <button class="chat-send" id="chatSend">Send</button>
-                    </div>
+<!-- PAGE: ENFORCEMENT PLANNER -->
+<div class="page" id="page-planner">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title">Enforcement Planner</div>
+            <div class="topbar-sub">K-Means clustering + greedy nearest-neighbor patrol routing</div>
+        </div>
+    </div>
+    <div class="planner-layout" style="flex:1;overflow:hidden;">
+        <div class="planner-controls">
+            <div class="form-group">
+                <label class="form-label">Day of Week</label>
+                <div class="pill-group" id="plannerDayPills">
+                    <button class="pill" onclick="selectPlannerDay(this,'Monday')">Mon</button>
+                    <button class="pill" onclick="selectPlannerDay(this,'Tuesday')">Tue</button>
+                    <button class="pill" onclick="selectPlannerDay(this,'Wednesday')">Wed</button>
+                    <button class="pill active" onclick="selectPlannerDay(this,'Thursday')">Thu</button>
+                    <button class="pill" onclick="selectPlannerDay(this,'Friday')">Fri</button>
+                    <button class="pill" onclick="selectPlannerDay(this,'Saturday')">Sat</button>
+                    <button class="pill" onclick="selectPlannerDay(this,'Sunday')">Sun</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Shift Start Hour: <span id="startHourLabel" style="color:var(--blue);">8:00</span></label>
+                <input type="range" id="startHour" min="0" max="22" value="8" style="width:100%;accent-color:var(--blue);" oninput="document.getElementById('startHourLabel').textContent=this.value+':00'">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Shift End Hour: <span id="endHourLabel" style="color:var(--blue);">12:00</span></label>
+                <input type="range" id="endHour" min="1" max="24" value="12" style="width:100%;accent-color:var(--blue);" oninput="document.getElementById('endHourLabel').textContent=this.value+':00'">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Number of Officers</label>
+                <div class="stepper">
+                    <button class="stepper-btn" onclick="changeOfficers(-1)">-</button>
+                    <span class="stepper-val" id="officerCount">3</span>
+                    <button class="stepper-btn" onclick="changeOfficers(1)">+</button>
+                    <span style="font-size:10px;color:var(--t3);margin-left:4px;">max 5</span>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="generatePlan()" id="generateBtn">Generate Patrol Plan</button>
+            <div id="plannerStatus" style="margin-top:10px;font-size:11px;color:var(--t2);"></div>
+            <div class="card" style="margin-top:14px;">
+                <div class="card-title">Routing Constraints</div>
+                <div class="d-row"><span class="d-lbl">Travel speed</span><span class="d-val">20 km/h</span></div>
+                <div class="d-row"><span class="d-lbl">Dwell time/stop</span><span class="d-val">20 min</span></div>
+                <div class="d-row"><span class="d-lbl">Priority formula</span><span class="d-val">Count x PCIS x Consistency</span></div>
+                <div class="d-row"><span class="d-lbl">Clustering</span><span class="d-val">K-Means (sklearn)</span></div>
+                <div class="d-row"><span class="d-lbl">Routing</span><span class="d-val">Greedy nearest-neighbor</span></div>
+            </div>
+        </div>
+        <div style="display:flex;flex-direction:column;overflow:hidden;">
+            <div id="plannerMap" style="flex:1;"></div>
+            <div class="officer-cards" id="officerCards">
+                <div style="color:var(--t3);font-size:12px;text-align:center;padding:20px;">Configure parameters and click Generate.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PAGE: STATION COMPARISON -->
+<div class="page" id="page-stations">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title">Station Comparison</div>
+            <div class="topbar-sub">Multi-metric performance scorecard for all 54 police stations</div>
+        </div>
+        <select class="form-select" id="stationMetricSel" onchange="updateStationChart()" style="width:180px;padding:6px 9px;">
+            <option value="overall_score">Overall Score</option>
+            <option value="quality_score">Quality Score</option>
+            <option value="coverage_score">Coverage Score</option>
+            <option value="responsiveness_score">Responsiveness</option>
+            <option value="balance_score">Balance Score</option>
+            <option value="zone_complexity_score">Zone Complexity</option>
+        </select>
+    </div>
+    <div class="page-layout">
+        <div class="note-card">
+            <div class="note-card-title">Context: These are system-level flags, not officer rankings</div>
+            <div class="note-card-text">Scores reflect data patterns. High-scoring stations may simply have better device coverage and higher violation density. Use as a resource-allocation guide, not a performance report.</div>
+        </div>
+        <div class="grid-3" style="margin-bottom:14px;" id="stationSummaryCards"></div>
+        <div class="card"><div class="card-title" id="stationChartTitle">Top Stations by Overall Score</div><canvas id="stationChart" style="max-height:300px;"></canvas></div>
+        <div class="card" style="margin-top:14px;"><div class="card-title">Full Scorecard</div><div style="overflow-x:auto;"><table class="data-table" id="stationTable"><thead><tr><th onclick="sortStationTable('rank')">#</th><th onclick="sortStationTable('station')">Station</th><th onclick="sortStationTable('overall_score')">Overall</th><th onclick="sortStationTable('quality_score')">Quality</th><th onclick="sortStationTable('coverage_score')">Coverage</th><th onclick="sortStationTable('responsiveness_score')">Speed</th><th onclick="sortStationTable('balance_score')">Balance</th><th onclick="sortStationTable('total_violations')">Violations</th></tr></thead><tbody id="stationTableBody"></tbody></table></div></div>
+    </div>
+</div>
+
+<!-- PAGE: TEMPORAL PATTERNS -->
+<div class="page" id="page-temporal">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title">Temporal Patterns</div>
+            <div class="topbar-sub">Day-by-hour heatmap and hourly violation distribution</div>
+        </div>
+    </div>
+    <div class="page-layout">
+        <div class="grid-3" id="temporalInsightCards" style="margin-bottom:14px;"></div>
+        <div class="card">
+            <div class="card-title">Day x Hour Violation Heatmap</div>
+            <div style="overflow-x:auto;padding-top:2px;">
+                <div style="display:flex;gap:3px;margin-bottom:4px;margin-left:58px;" id="hmHourHeaders"></div>
+                <div id="hmGrid"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                <span style="font-size:9px;color:var(--t3);">Low</span>
+                <div style="flex:1;height:5px;border-radius:2px;background:linear-gradient(to right,#1a1f35,#1e40af,#f59e0b,#ef4444);"></div>
+                <span style="font-size:9px;color:var(--t3);">High</span>
+            </div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+            <div class="card-title">Hourly Distribution (4-7 AM highlighted in red)</div>
+            <canvas id="temporalHourlyChart" style="max-height:220px;"></canvas>
+        </div>
+        <div class="note-card" style="margin-top:14px;">
+            <div class="note-card-title">Balanced Interpretation of 4-7 AM Spike</div>
+            <div class="note-card-text">Two explanations are plausible: (1) overnight illegally-parked vehicles being ticketed in early-morning sweeps, or (2) systematic early-morning patrol patterns. Without vehicle departure timestamps, a conclusive determination is not possible.</div>
+        </div>
+    </div>
+</div>
+
+<!-- PAGE: GAP ANALYSIS -->
+<div class="page" id="page-gaps">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title">Gap Analysis</div>
+            <div class="topbar-sub">Three indirect methods to identify potentially under-recorded areas</div>
+        </div>
+    </div>
+    <div class="page-layout">
+        <div class="note-card">
+            <div class="note-card-title">These are flags, not conclusions</div>
+            <div class="note-card-text">A high gap score means the data pattern is unusual — it does not confirm that violations are occurring or being missed. Use as a review trigger, not a finding.</div>
+        </div>
+        <div id="gapMethods"></div>
+        <div class="card"><div class="card-title">Combined Gap Score (weighted 40/35/25)</div><canvas id="gapCombinedChart" style="max-height:280px;"></canvas></div>
+    </div>
+</div>
+
+<!-- PAGE: VEHICLE PROFILES -->
+<div class="page" id="page-vehicles">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title">Vehicle Profiles</div>
+            <div class="topbar-sub">Vehicle type breakdown per station with enforcement recommendations</div>
+        </div>
+        <select class="form-select" id="vehicleStationSel" onchange="loadVehicleProfile(this.value)" style="width:220px;padding:6px 9px;">
+            <option value="all">All Stations (Overview)</option>
+        </select>
+    </div>
+    <div class="page-layout">
+        <div class="grid-2" id="vehicleTopRow"></div>
+        <div class="card" style="margin-top:14px;"><div class="card-title">Multi-Station Vehicle Type Comparison (%)</div><div style="overflow-x:auto;"><table class="data-table"><thead id="vehicleTableHead"></thead><tbody id="vehicleTableBody"></tbody></table></div></div>
+    </div>
+</div>
+
+<!-- PAGE: WEEKDAY VS WEEKEND -->
+<div class="page" id="page-weekend">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title">Weekday vs Weekend</div>
+            <div class="topbar-sub">Observed violation split per station</div>
+        </div>
+    </div>
+    <div class="page-layout">
+        <div class="note-card">
+            <div class="note-card-title">Observational data only</div>
+            <div class="note-card-text">Patterns reflect recorded violations, not actual parking behaviour. Low weekend % may reflect enforcement scheduling rather than fewer violations.</div>
+        </div>
+        <div class="grid-3" id="weekendInsightCards" style="margin-bottom:14px;"></div>
+        <div class="grid-2">
+            <div class="card"><div class="card-title">Weekend % per Station (Scatter)</div><canvas id="weekendScatter"></canvas></div>
+            <div class="card"><div class="card-title">Top Weekend-Heavy Stations</div><div id="weekendBars"></div></div>
+        </div>
+        <div class="card" style="margin-top:14px;"><div class="card-title">All Stations</div><div style="overflow-x:auto;"><table class="data-table"><thead><tr><th onclick="sortWeekendTable('station')">Station</th><th onclick="sortWeekendTable('total')">Total</th><th onclick="sortWeekendTable('weekday_count')">Weekday</th><th onclick="sortWeekendTable('weekend_count')">Weekend</th><th onclick="sortWeekendTable('weekend_pct')">Weekend %</th></tr></thead><tbody id="weekendTableBody"></tbody></table></div></div>
+    </div>
+</div>
+
+<!-- PAGE: AI CHAT -->
+<div class="page" id="page-chat">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title">AI Chat</div>
+            <div class="topbar-sub">Ask questions about Bengaluru parking data powered by Gemini</div>
+        </div>
+        <button class="btn btn-ghost" onclick="resetChat()" style="font-size:11px;">Reset Conversation</button>
+    </div>
+    <div style="flex:1;display:grid;grid-template-columns:1fr 340px;overflow:hidden;">
+        <!-- Chat panel -->
+        <div style="display:flex;flex-direction:column;padding:16px;border-right:1px solid var(--border);overflow:hidden;">
+            <div class="chat-msgs" id="chatMessages">
+                <div class="chat-msg bot"><strong>PARKVISION AI</strong><br>Hello! I have full context about Bengaluru's 207,000+ parking violations, 54 police stations, hotspot rankings, temporal patterns, and patrol routes. Ask me anything.</div>
+            </div>
+            <div class="chat-chips" style="margin-top:8px;">
+                <button class="chip" onclick="quickChat('Which station needs the most enforcement support right now?')">Top priority station?</button>
+                <button class="chip" onclick="quickChat('Why is there a spike in violations at 4-7 AM?')">4-7 AM spike?</button>
+                <button class="chip" onclick="quickChat('What are the top 5 most dangerous hotspot hexagons?')">Top hotspots?</button>
+                <button class="chip" onclick="quickChat('Which vehicle type causes the most congestion?')">Worst vehicle type?</button>
+                <button class="chip" onclick="quickChat('Which areas show unusual patterns that need review?')">Unusual patterns?</button>
+                <button class="chip" onclick="quickChat('What does the PCIS score measure?')">What is PCIS?</button>
+            </div>
+            <div class="chat-bar">
+                <input class="chat-input" id="chatInput" placeholder="Ask about parking violations, hotspots, stations..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChat();}">
+                <button class="chat-clear-btn" onclick="clearChat()" title="Clear">X</button>
+                <button class="chat-send" id="chatSend" onclick="sendChat()">Send</button>
+            </div>
+        </div>
+        <!-- Quick context panel -->
+        <div style="overflow-y:auto;padding:16px;background:var(--bg2);">
+            <div class="card-title" style="margin-bottom:12px;">Quick Reference</div>
+            <div class="card">
+                <div class="card-title">What PARKVISION AI knows</div>
+                <div style="font-size:11px;color:var(--t2);line-height:1.7;">
+                    - 207,781 validated parking violations<br>
+                    - 54 police stations in Bengaluru<br>
+                    - PCIS (Parking Congestion Impact Score)<br>
+                    - CHR (Congestion Hours Recoverable)<br>
+                    - H3 hexagonal hotspot ranking<br>
+                    - 7-day x 24-hour temporal patterns<br>
+                    - Vehicle type breakdown by station<br>
+                    - Weekday vs weekend split analysis<br>
+                    - Gap analysis (3 methods)<br>
+                    - Next-week violation predictions
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Example Questions</div>
+                <div style="font-size:11px;color:var(--t2);line-height:2;">
+                    - "Which stations have the highest CHR?"<br>
+                    - "Explain the gap analysis methods"<br>
+                    - "What is the expected violation count next Monday?"<br>
+                    - "Which roads have the most junction violations?"<br>
+                    - "Compare weekday vs weekend in Koramangala"
                 </div>
             </div>
         </div>
-    </aside>
-</main>
+    </div>
+</div>
+
+</div><!-- end .app -->
 
 <script>
-// ═══════════════════════════════════════════════════════
-// PARKVISION AI — Dashboard Controller
-// ═══════════════════════════════════════════════════════
+const API = '';
+let charts = {}, map, plannerMap;
+let heatLayer, hexLayer, routeLayer, stationLayer;
+let hotspots = [], stationData = [], gapData = [], weekendData = [], vehicleAllData = {};
+let plannerDay = 'Thursday', plannerOfficers = 3;
+let stationTableData = [], stationSortKey = 'rank', stationSortAsc = true;
+let weekendTableData = [], weekendSortKey = 'weekend_pct', weekendSortAsc = false;
+let f2Filters = { station:'', day:'', hour_start:null, hour_end:null, vehicle_type:'', tier:'' };
+let f2Results = [];
+let plannerMarkers = [];
+let _tomtomKey = '';
+let activeRouteShift = 'all';
 
-const API = '';  // Same origin
+// PAGE NAV
+function showPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.getElementById('nav-' + page).classList.add('active');
+    if (page === 'planner' && !plannerMap) initPlannerMap();
+    if (page === 'stations' && !stationData.length) loadStationComparison();
+    if (page === 'temporal') loadTemporalPatterns();
+    if (page === 'gaps' && !gapData.length) loadGapAnalysis();
+    if (page === 'vehicles' && !Object.keys(vehicleAllData).length) loadVehicleProfiles();
+    if (page === 'weekend' && !weekendData.length) loadWeekendSplit();
+    if (page === 'hotspots') renderFilterResults(f2Results.length ? f2Results : hotspots);
+    setTimeout(() => { if(map) map.invalidateSize(); if(plannerMap) plannerMap.invalidateSize(); }, 100);
+}
 
-// ── State ───────────────────────────────────────────
-let hotspots = [];
-let map, heatLayer, hexLayer, routeLayer, stationLayer;
-let activeShift = 'all';
-let activeLayers = new Set(['heatmap']);
-let charts = {};
+// MAP INIT
+function getTileLayer() {
+    if (_tomtomKey) {
+        return L.tileLayer(
+            'https://{s}.api.tomtom.com/map/1/tile/basic/night/{z}/{x}/{y}.png?key=' + _tomtomKey + '&tileSize=256',
+            { subdomains:['a','b','c','d'], maxZoom:22, attribution:'TomTom' }
+        );
+    }
+    return L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:19 });
+}
 
-// ── Initialize ──────────────────────────────────────
+function initMap() {
+    map = L.map('map', { center:[12.9716,77.5946], zoom:12, zoomControl:false, attributionControl:false });
+    getTileLayer().addTo(map);
+    L.control.zoom({ position:'bottomright' }).addTo(map);
+}
+
+function initPlannerMap() {
+    plannerMap = L.map('plannerMap', { center:[12.9716,77.5946], zoom:12, zoomControl:true, attributionControl:false });
+    getTileLayer().addTo(plannerMap);
+}
+
+// STARTUP
 document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const cfg = await fetch('/api/config').then(r => r.json());
+        if (cfg.has_tomtom) { _tomtomKey = cfg.tomtom_api_key; console.log('TomTom tiles OK'); }
+    } catch(e) { console.warn('Config fetch failed, using CartoDB'); }
     initMap();
-    initTabs();
-    initShiftSelector();
-    initMapButtons();
-    initChat();
-    
-    await Promise.all([
-        loadSummary(),
-        loadHotspots(),
-        loadTemporal(),
-        loadPredictions(),
-    ]);
+    await Promise.all([loadSummary(), loadHotspots(), loadTemporal(), loadPredictions(), loadVehicleStationList()]);
 });
 
-// ── Map ─────────────────────────────────────────────
-function initMap() {
-    map = L.map('map', {
-        center: [12.9716, 77.5946],
-        zoom: 12,
-        zoomControl: false,
-        attributionControl: false,
-    });
-
-    // Dark tile layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-    }).addTo(map);
-
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-}
-
-// ── Load Summary Stats ──────────────────────────────
+// SUMMARY
 async function loadSummary() {
     try {
-        const res = await fetch(`${API}/api/summary`);
-        const data = await res.json();
-        
-        document.getElementById('statViolations').textContent = data.total_violations?.toLocaleString() || '—';
-        document.getElementById('statHexagons').textContent = data.total_hexagons?.toLocaleString() || '—';
-        document.getElementById('statCHR').textContent = (data.total_chr / 1000000).toFixed(1) + 'M';
-        document.getElementById('statPCIS').textContent = data.avg_pcis?.toFixed(3) || '—';
-        
-        const alerts = (data.tiers?.URGENT || 0) + (data.tiers?.HIGH || 0);
-        document.getElementById('statAlerts').textContent = alerts;
-        
-        // Tier chart
-        if (data.tiers) {
-            renderTierChart(data.tiers);
-        }
-    } catch (e) {
-        console.error('Summary load error:', e);
-    }
+        const d = await fetch('/api/summary').then(r => r.json());
+        const sv = document.getElementById('mapStatViolations'); if(sv) sv.textContent = (d.total_violations||0).toLocaleString();
+        const sc = document.getElementById('mapStatCHR'); if(sc) sc.textContent = ((d.total_chr||0)/1e6).toFixed(1)+'M';
+        const alerts = (d.tiers?.URGENT||0)+(d.tiers?.HIGH||0);
+        const sa = document.getElementById('mapStatAlerts'); if(sa) sa.textContent = alerts;
+        if (d.tiers) renderTierChart(d.tiers);
+    } catch(e) { console.error('summary', e); }
 }
 
-// ── Load Hotspots ───────────────────────────────────
-async function loadHotspots() {
+// HOTSPOTS
+async function loadHotspots(params) {
     try {
-        const res = await fetch(`${API}/api/hotspots?n=100`);
-        const data = await res.json();
-        hotspots = data.hotspots || [];
-        
-        document.getElementById('hotspotCount').textContent = `Top ${hotspots.length}`;
-        renderHotspotList(hotspots);
+        const url = '/api/hotspots?n=200' + (params || '');
+        const d = await fetch(url).then(r => r.json());
+        hotspots = d.hotspots || [];
         renderHeatmap(hotspots);
-    } catch (e) {
-        console.error('Hotspot load error:', e);
-    }
+        renderFilterResults(hotspots); // also populate filter page
+    } catch(e) { console.error('hotspots', e); }
 }
 
-function renderHotspotList(items) {
-    const list = document.getElementById('hotspotList');
-    list.innerHTML = items.map((h, i) => `
-        <div class="hotspot-item" data-idx="${i}" onclick="selectHotspot(${i})">
-            <div class="hotspot-top">
-                <span class="hotspot-rank">#${h.priority_rank}</span>
-                <span class="hotspot-tier tier-${h.priority_tier}">${h.priority_tier}</span>
-            </div>
-            <div class="hotspot-station">${h.police_station}</div>
-            <div class="hotspot-meta">
-                <span>PCIS ${h.pcis_mean?.toFixed(3)}</span>
-                <span>CHR ${(h.chr/1000).toFixed(0)}K</span>
-                <span>${h.daily_frequency?.toFixed(0)}/day</span>
-            </div>
-            <div class="chr-bar"><div class="chr-fill" style="width:${h.chr_normalized}%"></div></div>
-        </div>
-    `).join('');
-}
-
-function selectHotspot(idx) {
-    const h = hotspots[idx];
-    if (!h) return;
-    
-    // Highlight in list
-    document.querySelectorAll('.hotspot-item').forEach(el => el.classList.remove('selected'));
-    document.querySelector(`.hotspot-item[data-idx="${idx}"]`)?.classList.add('selected');
-    
-    // Pan map
-    map.flyTo([h.centroid_lat, h.centroid_lon], 15, { duration: 1 });
-    
-    // Show popup
-    L.popup()
-        .setLatLng([h.centroid_lat, h.centroid_lon])
-        .setContent(`
-            <div style="font-family:Inter,sans-serif;color:#1a1f35;min-width:200px;">
-                <strong style="font-size:14px;">#${h.priority_rank} — ${h.police_station}</strong><br>
-                <span style="font-size:12px;color:#666;">
-                    PCIS: <strong>${h.pcis_mean?.toFixed(3)}</strong> | 
-                    CHR: <strong>${(h.chr/1000).toFixed(0)}K</strong><br>
-                    Violations: ${h.violation_count} | Peak: ${h.peak_hour}:00<br>
-                    H3: ${h.h3_index}
-                </span>
-            </div>
-        `)
-        .openOn(map);
-    
-    // Switch to detail tab and load
-    switchTab('detail');
-    renderDetail(h);
-}
-
-function renderDetail(h) {
-    const dc = document.getElementById('detailContent');
-    dc.innerHTML = `
-        <div class="detail-card">
-            <div class="chart-title">#${h.priority_rank} — ${h.police_station}</div>
-            <div class="detail-row"><span class="detail-label">H3 Index</span><span class="detail-value" style="font-size:10px">${h.h3_index}</span></div>
-            <div class="detail-row"><span class="detail-label">Priority Tier</span><span class="detail-value"><span class="hotspot-tier tier-${h.priority_tier}">${h.priority_tier}</span></span></div>
-            <div class="detail-row"><span class="detail-label">PCIS Score</span><span class="detail-value">${h.pcis_mean?.toFixed(3)}</span></div>
-            <div class="detail-row"><span class="detail-label">CHR Score</span><span class="detail-value">${(h.chr/1000).toFixed(1)}K veh-hrs/day</span></div>
-            <div class="detail-row"><span class="detail-label">CHR Normalized</span><span class="detail-value">${h.chr_normalized?.toFixed(1)} / 100</span></div>
-        </div>
-        <div class="detail-card">
-            <div class="chart-title">PCIS Components</div>
-            <div class="detail-row"><span class="detail-label">Capacity Reduction</span><span class="detail-value">${h.avg_capacity_reduction?.toFixed(3)}</span></div>
-            <div class="detail-row"><span class="detail-label">Proximity Factor</span><span class="detail-value">${h.avg_proximity?.toFixed(3)}</span></div>
-            <div class="detail-row"><span class="detail-label">Main Road %</span><span class="detail-value">${(h.pct_main_road * 100).toFixed(0)}%</span></div>
-            <div class="detail-row"><span class="detail-label">Junction %</span><span class="detail-value">${(h.pct_junction * 100).toFixed(0)}%</span></div>
-            <div class="detail-row"><span class="detail-label">Road Width</span><span class="detail-value">${h.avg_road_width?.toFixed(1)}m</span></div>
-        </div>
-        <div class="detail-card">
-            <div class="chart-title">Violation Profile</div>
-            <div class="detail-row"><span class="detail-label">Total Violations</span><span class="detail-value">${h.violation_count?.toLocaleString()}</span></div>
-            <div class="detail-row"><span class="detail-label">Daily Frequency</span><span class="detail-value">${h.daily_frequency?.toFixed(1)}/day</span></div>
-            <div class="detail-row"><span class="detail-label">Peak Hour</span><span class="detail-value">${h.peak_hour}:00</span></div>
-            <div class="detail-row"><span class="detail-label">Location</span><span class="detail-value">${h.centroid_lat?.toFixed(4)}, ${h.centroid_lon?.toFixed(4)}</span></div>
-        </div>
-    `;
-}
-
-// ── Heatmap Layer ───────────────────────────────────
+// HEATMAP (fixed gradient - visible on dark map)
 function renderHeatmap(items) {
-    if (heatLayer) map.removeLayer(heatLayer);
-    
-    const points = items.map(h => [
+    if (heatLayer) { try { map.removeLayer(heatLayer); } catch(e){} }
+    if (!items || !items.length) return;
+    const maxCount = Math.max(...items.map(h => h.violation_count||0), 1);
+    const pts = items.map(h => [
         h.centroid_lat, h.centroid_lon,
-        h.chr_normalized / 100
+        Math.min((h.violation_count||0)/maxCount * 0.9 + 0.1, 1.0)
     ]);
-    
-    heatLayer = L.heatLayer(points, {
-        radius: 25,
-        blur: 20,
-        maxZoom: 15,
-        gradient: {
-            0.0: '#1a1f35',
-            0.2: '#10b981',
-            0.4: '#3b82f6',
-            0.6: '#f59e0b',
-            0.8: '#ef4444',
-            1.0: '#ec4899',
-        }
-    }).addTo(map);
+    heatLayer = L.heatLayer(pts, {
+        radius: 28,
+        blur: 22,
+        minOpacity: 0.4,
+        gradient: { 0.2:'#1e3a8a', 0.45:'#0ea5e9', 0.65:'#f59e0b', 0.85:'#ef4444', 1:'#fff' }
+    });
+    heatLayer.addTo(map);
 }
 
-// ── Hexagon Layer ───────────────────────────────────
+// MAP LAYERS
+function toggleMapLayer(layer, btn) {
+    btn.classList.toggle('active');
+    const on = btn.classList.contains('active');
+    if (layer === 'heatmap') { if(on) { renderHeatmap(hotspots); } else if(heatLayer) { try{map.removeLayer(heatLayer);}catch(e){} } }
+    if (layer === 'hexagons') { if(on) renderHexagons(hotspots); else if(hexLayer) { try{map.removeLayer(hexLayer);}catch(e){} } }
+    if (layer === 'routes') {
+        const sp = document.getElementById('routeShiftPanel');
+        if (on) { if(sp) sp.style.display='block'; loadRoutes(null); }
+        else { if(sp) sp.style.display='none'; if(routeLayer) { try{map.removeLayer(routeLayer);}catch(e){} } }
+    }
+    if (layer === 'stations') { if(on) loadStationMarkers(); else if(stationLayer) { try{map.removeLayer(stationLayer);}catch(e){} } }
+}
+
 function renderHexagons(items) {
-    if (hexLayer) map.removeLayer(hexLayer);
+    if (hexLayer) { try{map.removeLayer(hexLayer);}catch(e){} }
     hexLayer = L.layerGroup();
-    
     items.forEach(h => {
         const color = pcisColor(h.pcis_mean);
         try {
-            const boundary = h3.cellToBoundary(h.h3_index);
-            const latlngs = boundary.map(([lat, lng]) => [lat, lng]);
-            L.polygon(latlngs, {
-                color: color,
-                fillColor: color,
-                fillOpacity: 0.35,
-                weight: 1,
-                opacity: 0.6,
-            }).bindPopup(`
-                <strong>${h.police_station}</strong><br>
-                PCIS: ${h.pcis_mean?.toFixed(3)} | Violations: ${h.violation_count}
-            `).addTo(hexLayer);
+            const b = h3.cellToBoundary(h.h3_index);
+            L.polygon(b.map(([a,b]) => [a,b]), { color, fillColor:color, fillOpacity:.32, weight:1, opacity:.7 })
+                .bindPopup('<strong>' + h.police_station + '</strong><br>PCIS: ' + (h.pcis_mean||0).toFixed(3) + ' | ' + h.violation_count + ' violations')
+                .addTo(hexLayer);
         } catch(e) {
-            // Fallback: circle marker
-            L.circleMarker([h.centroid_lat, h.centroid_lon], {
-                radius: 8, color, fillColor: color,
-                fillOpacity: 0.5, weight: 1,
-            }).addTo(hexLayer);
+            L.circleMarker([h.centroid_lat,h.centroid_lon], {radius:7,fillColor:color,color:color,fillOpacity:.6,weight:1}).addTo(hexLayer);
         }
     });
-    
     hexLayer.addTo(map);
 }
 
-function pcisColor(pcis) {
-    if (pcis >= 0.8) return '#ef4444';
-    if (pcis >= 0.6) return '#f59e0b';
-    if (pcis >= 0.4) return '#3b82f6';
-    if (pcis >= 0.2) return '#10b981';
+async function loadRoutes(shiftOverride) {
+    const shift = (shiftOverride !== undefined && shiftOverride !== null) ? shiftOverride : (activeRouteShift === 'all' ? null : activeRouteShift);
+    const url = shift ? '/api/patrol-routes?shift=' + shift : '/api/patrol-routes';
+    try {
+        const geojson = await fetch(url).then(r => r.json());
+        if (routeLayer) { try{map.removeLayer(routeLayer);}catch(e){} }
+        const clrs = { morning:'#f59e0b', midday:'#3b82f6', afternoon:'#8b5cf6', evening:'#ec4899', night:'#06b6d4' };
+        routeLayer = L.geoJSON(geojson, {
+            style: f => ({ color:clrs[f.properties.shift]||'#3b82f6', weight:3, opacity:.8, dashArray:'8,6' }),
+            onEachFeature: (f,l) => { l.bindPopup('<strong>' + f.properties.depot_station + '</strong> - ' + f.properties.shift + '<br>Stops: ' + f.properties.n_stops); }
+        }).addTo(map);
+    } catch(e) { console.error('routes', e); }
+}
+
+async function selectRouteShift(shift, btn) {
+    activeRouteShift = shift;
+    document.querySelectorAll('#routeShiftPanel .map-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    await loadRoutes(shift === 'all' ? null : shift);
+}
+
+async function loadStationMarkers() {
+    try {
+        const geojson = await fetch('/api/stations').then(r => r.json());
+        if (stationLayer) { try{map.removeLayer(stationLayer);}catch(e){} }
+        stationLayer = L.geoJSON(geojson, {
+            pointToLayer: (f,ll) => L.circleMarker(ll, {radius:7,fillColor:'#10b981',color:'#065f46',weight:2,fillOpacity:.9}),
+            onEachFeature: (f,l) => { l.bindPopup('<strong>' + f.properties.police_station + '</strong><br>Violations: ' + parseInt(f.properties.total_violations||0).toLocaleString()); }
+        }).addTo(map);
+    } catch(e) { console.error('stmarkers', e); }
+}
+
+function pcisColor(v) {
+    if (v >= .8) return '#ef4444';
+    if (v >= .6) return '#f59e0b';
+    if (v >= .4) return '#3b82f6';
+    if (v >= .2) return '#10b981';
     return '#6b7280';
 }
 
-// ── Patrol Routes Layer ─────────────────────────────
-async function loadRoutes() {
-    try {
-        const url = activeShift === 'all' 
-            ? `${API}/api/patrol-routes`
-            : `${API}/api/patrol-routes?shift=${activeShift}`;
-        const res = await fetch(url);
-        const geojson = await res.json();
-        
-        if (routeLayer) map.removeLayer(routeLayer);
-        
-        const routeColors = {
-            morning: '#f59e0b',
-            midday: '#3b82f6',
-            afternoon: '#8b5cf6',
-            evening: '#ec4899',
-            night: '#06b6d4',
-        };
-        
-        routeLayer = L.geoJSON(geojson, {
-            style: (feature) => ({
-                color: routeColors[feature.properties.shift] || '#3b82f6',
-                weight: 3,
-                opacity: 0.8,
-                dashArray: '8, 6',
-            }),
-            onEachFeature: (feature, layer) => {
-                const p = feature.properties;
-                layer.bindPopup(`
-                    <strong>${p.depot_station}</strong> — ${p.shift}<br>
-                    Stops: ${p.n_stops} | CHR: ${(p.total_chr/1000).toFixed(0)}K<br>
-                    Travel: ${p.travel_time_hours}h | Total: ${p.total_time_hours}h
-                `);
-            }
-        }).addTo(map);
-    } catch (e) {
-        console.error('Routes load error:', e);
-    }
+// MINI ANALYTICS TABS
+function switchMiniTab(name, btn) {
+    ['Hourly','Daily','Tiers'].forEach(t => {
+        const el = document.getElementById('mini' + t);
+        if(el) el.style.display = (t === name) ? 'block' : 'none';
+    });
+    document.querySelectorAll('#miniTabHourly,#miniTabDaily,#miniTabTiers').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
 }
 
-// ── Stations Layer ──────────────────────────────────
-async function loadStations() {
-    try {
-        const res = await fetch(`${API}/api/stations`);
-        const geojson = await res.json();
-        
-        if (stationLayer) map.removeLayer(stationLayer);
-        
-        stationLayer = L.geoJSON(geojson, {
-            pointToLayer: (feature, latlng) => {
-                return L.circleMarker(latlng, {
-                    radius: 7,
-                    fillColor: '#10b981',
-                    color: '#065f46',
-                    weight: 2,
-                    fillOpacity: 0.9,
-                });
-            },
-            onEachFeature: (feature, layer) => {
-                const p = feature.properties;
-                layer.bindPopup(`
-                    <strong>${p.police_station}</strong><br>
-                    Violations: ${parseInt(p.total_violations).toLocaleString()}<br>
-                    Avg PCIS: ${parseFloat(p.avg_pcis).toFixed(3)}<br>
-                    Daily Rate: ${parseFloat(p.daily_rate).toFixed(0)}/day
-                `);
-            }
-        }).addTo(map);
-    } catch (e) {
-        console.error('Stations load error:', e);
-    }
-}
-
-// ── Temporal Charts ─────────────────────────────────
+// ANALYTICS CHARTS
 async function loadTemporal() {
     try {
-        const res = await fetch(`${API}/api/temporal/city`);
-        const data = await res.json();
-        renderHourlyChart(data.hourly);
-        renderDailyChart(data.daily);
-    } catch (e) {
-        console.error('Temporal load error:', e);
-    }
-}
-
-function renderHourlyChart(hourly) {
-    const ctx = document.getElementById('chartHourly');
-    if (charts.hourly) charts.hourly.destroy();
-    
-    const hours = Object.keys(hourly).map(Number).sort((a,b) => a-b);
-    const values = hours.map(h => hourly[h]);
-    
-    charts.hourly = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: hours.map(h => `${h}:00`),
-            datasets: [{
-                data: values,
-                backgroundColor: values.map(v => {
-                    const max = Math.max(...values);
-                    const ratio = v / max;
-                    return ratio > 0.8 ? '#ef4444' : ratio > 0.5 ? '#f59e0b' : '#3b82f6';
-                }),
-                borderRadius: 4,
-                borderSkipped: false,
-            }]
-        },
-        options: chartOptions('Violations'),
-    });
-}
-
-function renderDailyChart(daily) {
-    const ctx = document.getElementById('chartDaily');
-    if (charts.daily) charts.daily.destroy();
-    
-    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    const values = days.map(d => daily[d] || 0);
-    
-    charts.daily = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: days,
-            datasets: [{
-                data: values,
-                backgroundColor: '#8b5cf6',
-                borderRadius: 4,
-                borderSkipped: false,
-            }]
-        },
-        options: chartOptions('Violations'),
-    });
+        const d = await fetch('/api/temporal/city').then(r => r.json());
+        renderHourlyChart(d.hourly);
+        renderDailyChart(d.daily);
+    } catch(e) {}
 }
 
 async function loadPredictions() {
     try {
-        const res = await fetch(`${API}/api/predict`);
-        const data = await res.json();
-        
-        const ctx = document.getElementById('chartPredict');
-        if (charts.predict) charts.predict.destroy();
-        
-        const daily = data.daily || [];
-        charts.predict = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: daily.map(d => d.pred_dow_name || ''),
-                datasets: [{
-                    label: 'Predicted',
-                    data: daily.map(d => d.total),
-                    borderColor: '#ec4899',
-                    backgroundColor: 'rgba(236,72,153,0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#ec4899',
-                }]
-            },
-            options: chartOptions('Violations'),
-        });
-    } catch (e) {
-        console.error('Predict load error:', e);
-    }
+        const d = await fetch('/api/predict').then(r => r.json());
+        // predictions chart not needed on map page (removed chartPredict canvas)
+    } catch(e) {}
+}
+
+function renderHourlyChart(hourly) {
+    const ctx = document.getElementById('chartHourly');
+    if (!ctx) return;
+    if (charts.hourly) charts.hourly.destroy();
+    const hrs = Object.keys(hourly).map(Number).sort((a,b)=>a-b);
+    const vals = hrs.map(h => hourly[h]);
+    const mx = Math.max(...vals);
+    charts.hourly = new Chart(ctx, { type:'bar', data: {
+        labels: hrs.map(h => h+':00'),
+        datasets: [{ data:vals, backgroundColor:vals.map(v => v/mx>.8?'#ef4444':v/mx>.5?'#f59e0b':'#3b82f6'), borderRadius:2, borderSkipped:false }]
+    }, options: miniChartOpts() });
+}
+
+function renderDailyChart(daily) {
+    const ctx = document.getElementById('chartDaily');
+    if (!ctx) return;
+    if (charts.daily) charts.daily.destroy();
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    charts.daily = new Chart(ctx, { type:'bar', data: {
+        labels: days, datasets: [{ data:days.map(d=>daily[d]||0), backgroundColor:'#8b5cf6', borderRadius:2, borderSkipped:false }]
+    }, options: miniChartOpts() });
 }
 
 function renderTierChart(tiers) {
     const ctx = document.getElementById('chartTiers');
+    if (!ctx) return;
     if (charts.tiers) charts.tiers.destroy();
-    
-    const labels = ['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'MONITOR'];
-    const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6b7280'];
-    const values = labels.map(l => tiers[l] || 0);
-    
-    charts.tiers = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels,
-            datasets: [{
-                data: values,
-                backgroundColor: colors,
-                borderWidth: 0,
-                hoverOffset: 8,
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: '#8b95b0', font: { size: 11 }, padding: 12, usePointStyle: true },
-                }
-            }
-        }
-    });
+    const labels = ['URGENT','HIGH','MEDIUM','LOW','MONITOR'];
+    const colors = ['#ef4444','#f59e0b','#3b82f6','#10b981','#6b7280'];
+    charts.tiers = new Chart(ctx, { type:'doughnut', data: {
+        labels, datasets: [{ data:labels.map(l=>tiers[l]||0), backgroundColor:colors, borderWidth:0, hoverOffset:6 }]
+    }, options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{ color:'#8b95b0', font:{size:9}, padding:8, usePointStyle:true } } } } });
 }
 
-function chartOptions(yLabel) {
-    return {
-        responsive: true,
-        plugins: {
-            legend: { display: false },
-        },
-        scales: {
-            x: {
-                ticks: { color: '#5a6380', font: { size: 10 } },
-                grid: { display: false },
-            },
-            y: {
-                ticks: { color: '#5a6380', font: { size: 10 } },
-                grid: { color: 'rgba(255,255,255,0.03)' },
-                title: { display: true, text: yLabel, color: '#5a6380', font: { size: 10 } },
-            }
-        }
-    };
+function miniChartOpts() {
+    return { responsive:true, plugins:{legend:{display:false}}, scales:{
+        x:{ticks:{color:'#5a6380',font:{size:8}},grid:{display:false}},
+        y:{ticks:{color:'#5a6380',font:{size:8}},grid:{color:'rgba(255,255,255,.02)'}}
+    }};
 }
 
-// ── Tab Navigation ──────────────────────────────────
-function initTabs() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
+function chartOpts(yLabel) {
+    return { responsive:true, plugins:{legend:{display:false}}, scales:{
+        x:{ticks:{color:'#5a6380',font:{size:9}},grid:{display:false}},
+        y:{ticks:{color:'#5a6380',font:{size:9}},grid:{color:'rgba(255,255,255,.03)'},title:{display:!!yLabel,text:yLabel,color:'#5a6380',font:{size:9}}}
+    }};
 }
 
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    document.querySelector(`.tab-btn[data-tab="${tab}"]`)?.classList.add('active');
-    document.getElementById(`pane${tab.charAt(0).toUpperCase() + tab.slice(1)}`)?.classList.add('active');
-}
-
-// ── Shift Selector ──────────────────────────────────
-function initShiftSelector() {
-    document.querySelectorAll('.shift-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeShift = btn.dataset.shift;
-            if (activeLayers.has('routes')) loadRoutes();
+// ─── FILTER HOTSPOTS PAGE ────────────────────────────────────────────────────
+async function loadVehicleStationList() {
+    try {
+        const d = await fetch('/api/filter-options').then(r => r.json());
+        // Populate station dropdowns
+        ['f2Station','vehicleStationSel'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            d.stations.forEach(s => { const o = document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
         });
-    });
+        // Populate vehicle dropdown
+        const vsel = document.getElementById('f2Vehicle');
+        if (vsel) d.vehicle_types.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; vsel.appendChild(o); });
+    } catch(e) { console.error('filter opts', e); }
 }
 
-// ── Map Layer Buttons ───────────────────────────────
-function initMapButtons() {
-    document.querySelectorAll('.map-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const layer = btn.dataset.layer;
-            btn.classList.toggle('active');
-            
-            if (btn.classList.contains('active')) {
-                activeLayers.add(layer);
-                toggleLayer(layer, true);
-            } else {
-                activeLayers.delete(layer);
-                toggleLayer(layer, false);
-            }
-        });
-    });
+function toggleF2Day(btn, day) {
+    const wasActive = btn.classList.contains('active');
+    document.querySelectorAll('#f2Days .pill').forEach(p => p.classList.remove('active'));
+    if (!wasActive) { btn.classList.add('active'); f2Filters.day = day; }
+    else { f2Filters.day = ''; }
 }
 
-function toggleLayer(layer, show) {
-    switch(layer) {
-        case 'heatmap':
-            if (show && heatLayer) heatLayer.addTo(map);
-            else if (heatLayer) map.removeLayer(heatLayer);
-            break;
-        case 'hexagons':
-            if (show) renderHexagons(hotspots);
-            else if (hexLayer) map.removeLayer(hexLayer);
-            break;
-        case 'routes':
-            if (show) loadRoutes();
-            else if (routeLayer) map.removeLayer(routeLayer);
-            break;
-        case 'stations':
-            if (show) loadStations();
-            else if (stationLayer) map.removeLayer(stationLayer);
-            break;
+function toggleF2Hour(btn, start, end) {
+    const wasActive = btn.classList.contains('active');
+    document.querySelectorAll('#f2Hours .pill').forEach(p => p.classList.remove('active'));
+    if (!wasActive) { btn.classList.add('active'); f2Filters.hour_start = start; f2Filters.hour_end = end; }
+    else { f2Filters.hour_start = null; f2Filters.hour_end = null; }
+}
+
+function toggleF2Tier(btn, tier) {
+    const wasActive = btn.classList.contains('active');
+    btn.closest('.pill-group').querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    if (!wasActive) { btn.classList.add('active'); f2Filters.tier = tier; }
+    else { f2Filters.tier = ''; }
+}
+
+async function applyHotspotFilters() {
+    f2Filters.station = document.getElementById('f2Station')?.value || '';
+    f2Filters.vehicle_type = document.getElementById('f2Vehicle')?.value || '';
+    let params = '';
+    if (f2Filters.station) params += '&station=' + encodeURIComponent(f2Filters.station);
+    if (f2Filters.day) params += '&day=' + f2Filters.day;
+    if (f2Filters.hour_start != null) params += '&hour_start=' + f2Filters.hour_start + '&hour_end=' + f2Filters.hour_end;
+    if (f2Filters.vehicle_type) params += '&vehicle_type=' + encodeURIComponent(f2Filters.vehicle_type);
+    if (f2Filters.tier) params += '&tier=' + f2Filters.tier;
+    const el = document.getElementById('hotspotResults');
+    if (el) el.innerHTML = '<div style="color:var(--t3);font-size:13px;text-align:center;padding:60px;">Fetching results...</div>';
+    try {
+        const d = await fetch('/api/hotspots?n=200' + params).then(r => r.json());
+        f2Results = d.hotspots || [];
+        const badge = document.getElementById('filterResultBadge');
+        if (badge) badge.textContent = f2Results.length + ' results';
+        showActiveFilters();
+        renderFilterResults(f2Results);
+    } catch(e) {
+        const el = document.getElementById('hotspotResults');
+        if (el) el.innerHTML = '<div style="color:var(--red);padding:20px;font-size:12px;">Error: ' + e.message + '</div>';
     }
 }
 
-// ── Chat ────────────────────────────────────────────
-function initChat() {
-    const input = document.getElementById('chatInput');
-    const send = document.getElementById('chatSend');
-    
-    send.addEventListener('click', sendChat);
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') sendChat();
-    });
+function clearHotspotFilters() {
+    f2Filters = { station:'', day:'', hour_start:null, hour_end:null, vehicle_type:'', tier:'' };
+    const s = document.getElementById('f2Station'); if(s) s.value='';
+    const v = document.getElementById('f2Vehicle'); if(v) v.value='';
+    document.querySelectorAll('#f2Days .pill, #f2Hours .pill, #page-hotspots .pill-group .pill').forEach(p => p.classList.remove('active'));
+    const sm = document.getElementById('activeFiltersSummary'); if(sm) sm.style.display='none';
+    const badge = document.getElementById('filterResultBadge'); if(badge) badge.textContent='';
+    renderFilterResults(hotspots);
 }
 
+function showActiveFilters() {
+    const parts = [];
+    if (f2Filters.station) parts.push('Station: ' + f2Filters.station);
+    if (f2Filters.day) parts.push('Day: ' + f2Filters.day);
+    if (f2Filters.hour_start != null) parts.push('Time: ' + f2Filters.hour_start + ':00-' + f2Filters.hour_end + ':00');
+    if (f2Filters.vehicle_type) parts.push('Vehicle: ' + f2Filters.vehicle_type);
+    if (f2Filters.tier) parts.push('Tier: ' + f2Filters.tier);
+    const el = document.getElementById('activeFiltersSummary');
+    const txt = document.getElementById('activeFiltersText');
+    if (el && txt) { if(parts.length){txt.textContent=parts.join(' | ');el.style.display='block';}else el.style.display='none'; }
+}
+
+function sortFilterResults() {
+    const key = document.getElementById('f2SortKey')?.value || 'priority_rank';
+    const data = [...f2Results];
+    data.sort((a,b) => key==='priority_rank' ? (a[key]||0)-(b[key]||0) : (b[key]||0)-(a[key]||0));
+    renderFilterResultsGrid(data);
+}
+
+function renderFilterResults(items) {
+    f2Results = items || [];
+    renderFilterResultsGrid(f2Results);
+}
+
+function renderFilterResultsGrid(items) {
+    const el = document.getElementById('hotspotResults');
+    if (!el) return;
+    if (!items || !items.length) {
+        el.innerHTML = '<div style="color:var(--t3);font-size:13px;text-align:center;padding:60px;">No results. Try broadening your filters.</div>';
+        return;
+    }
+    const cards = items.map(h =>
+        '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;transition:border-color .18s;cursor:default;" onmouseover="this.style.borderColor=\'rgba(59,130,246,.4)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        '<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><div><div style="font-size:9px;color:var(--t3);font-weight:600;">#' + h.priority_rank + '</div><div style="font-size:12px;font-weight:700;color:var(--t1);">' + h.police_station + '</div></div>' +
+        '<span class="tier-badge tier-' + h.priority_tier + '">' + h.priority_tier + '</span></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;">' +
+        '<div style="background:rgba(59,130,246,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">PCIS</div><div style="font-size:17px;font-weight:800;color:var(--blue);">' + (h.pcis_mean||0).toFixed(3) + '</div></div>' +
+        '<div style="background:rgba(139,92,246,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">Violations</div><div style="font-size:17px;font-weight:800;color:var(--purple);">' + (h.violation_count||0).toLocaleString() + '</div></div>' +
+        '<div style="background:rgba(245,158,11,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">CHR</div><div style="font-size:14px;font-weight:800;color:var(--amber);">' + ((h.chr||0)/1000).toFixed(0) + 'K</div></div>' +
+        '<div style="background:rgba(16,185,129,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">Peak Hour</div><div style="font-size:14px;font-weight:800;color:var(--green);">' + (h.peak_hour||0) + ':00</div></div>' +
+        '</div>' +
+        '<div style="height:3px;background:rgba(255,255,255,.04);border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + (h.chr_normalized||0) + '%;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ec4899);border-radius:2px;"></div></div>' +
+        '<div style="font-size:9px;color:var(--t3);margin-top:3px;">' + (h.daily_frequency||0).toFixed(1) + ' violations/day avg</div>' +
+        '</div>'
+    ).join('');
+    el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">' + cards + '</div>';
+}
+
+// ─── AI CHAT ─────────────────────────────────────────────────────────────────
 async function sendChat() {
     const input = document.getElementById('chatInput');
-    const msg = input.value.trim();
+    const msg = (input?.value || '').trim();
     if (!msg) return;
-    
-    addChatMsg(msg, 'user');
-    input.value = '';
-    
-    const send = document.getElementById('chatSend');
-    send.disabled = true;
-    addChatMsg('<div class="spinner"></div> Thinking...', 'bot', true);
-    
+    addChatMsg(msg, 'user', false);
+    if (input) input.value = '';
+    const sendBtn = document.getElementById('chatSend');
+    if (sendBtn) sendBtn.disabled = true;
+    addChatMsg('<span class="spinner"></span> Thinking...', 'bot', true);
     try {
-        const res = await fetch(`${API}/api/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: msg }),
-        });
-        const data = await res.json();
-        
-        // Remove loading message
+        const d = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:msg}) }).then(r => r.json());
         const msgs = document.getElementById('chatMessages');
-        msgs.lastChild?.remove();
-        
-        addChatMsg(`<strong>PARKVISION AI</strong><br>${formatResponse(data.response)}`, 'bot', true);
-    } catch (e) {
+        if (msgs && msgs.lastChild) msgs.lastChild.remove();
+        addChatMsg('<strong>PARKVISION AI</strong><br>' + fmtResponse(d.response||'No response received.'), 'bot', true);
+    } catch(e) {
         const msgs = document.getElementById('chatMessages');
-        msgs.lastChild?.remove();
-        addChatMsg(`<strong>Error:</strong> ${e.message}`, 'bot', true);
+        if (msgs && msgs.lastChild) msgs.lastChild.remove();
+        addChatMsg('<strong>Network Error:</strong> Could not reach the API server. Make sure the server is running on port 8000.', 'bot', true);
     }
-    
-    send.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
 }
 
-function addChatMsg(text, type, isHtml = false) {
-    const msgs = document.getElementById('chatMessages');
+function quickChat(msg) {
+    const input = document.getElementById('chatInput');
+    if (input) input.value = msg;
+    showPage('chat');
+    sendChat();
+}
+
+function clearChat() {
+    const el = document.getElementById('chatMessages');
+    if (el) el.innerHTML = '<div class="chat-msg bot"><strong>PARKVISION AI</strong><br>Chat cleared. Ask me anything!</div>';
+}
+
+async function resetChat() {
+    try {
+        await fetch('/api/chat/reset', { method:'POST' });
+    } catch(e) { console.warn('Reset failed', e); }
+    const el = document.getElementById('chatMessages');
+    if (el) el.innerHTML = '<div class="chat-msg bot"><strong>PARKVISION AI</strong><br>Conversation reset. I have a fresh context. How can I help you?</div>';
+}
+
+function addChatMsg(text, type, isHtml) {
+    const el = document.getElementById('chatMessages');
+    if (!el) return;
     const div = document.createElement('div');
-    div.className = `chat-msg ${type}`;
-    if (isHtml) div.innerHTML = text;
-    else div.textContent = text;
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
+    div.className = 'chat-msg ' + type;
+    if (isHtml) div.innerHTML = text; else div.textContent = text;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
 }
 
-function formatResponse(text) {
+function fmtResponse(text) {
     if (!text) return '';
-    // Basic markdown-to-html
-    return text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/\n/g, '<br>')
-        .replace(/`(.*?)`/g, '<code style="background:rgba(59,130,246,0.1);padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>');
+    return text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/\n/g,'<br>').replace(/`(.*?)`/g,'<code style="background:rgba(59,130,246,.1);padding:1px 4px;border-radius:3px;font-size:11px;">$1</code>');
 }
 
+// ─── PLANNER ────────────────────────────────────────────────────────────────
+function selectPlannerDay(btn, day) {
+    plannerDay = day;
+    document.querySelectorAll('#plannerDayPills .pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function changeOfficers(delta) {
+    plannerOfficers = Math.max(1, Math.min(5, plannerOfficers + delta));
+    document.getElementById('officerCount').textContent = plannerOfficers;
+}
+
+async function generatePlan() {
+    const btn = document.getElementById('generateBtn');
+    const status = document.getElementById('plannerStatus');
+    if (btn) { btn.disabled=true; btn.textContent='Generating...'; }
+    if (status) status.textContent = 'Running K-Means clustering...';
+    plannerMarkers.forEach(m => { try{plannerMap.removeLayer(m);}catch(e){} });
+    plannerMarkers = [];
+    try {
+        const payload = { day:plannerDay, start_hour:parseInt(document.getElementById('startHour').value), end_hour:parseInt(document.getElementById('endHour').value), n_officers:plannerOfficers };
+        const d = await fetch('/api/planner', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).then(r => r.json());
+        if (d.error) { if(status) status.textContent='Error: '+d.error; document.getElementById('officerCards').innerHTML='<div style="color:var(--red);font-size:12px;padding:16px;">'+d.error+'</div>'; }
+        else { if(status) status.textContent = 'Found '+d.total_zones_found+' zones for '+d.officers.length+' officers'; renderPlannerResult(d); }
+    } catch(e) { if(status) status.textContent='Network error: '+e.message; }
+    if (btn) { btn.disabled=false; btn.textContent='Generate Patrol Plan'; }
+}
+
+function renderPlannerResult(data) {
+    const cards = document.getElementById('officerCards');
+    let allLats=[], allLons=[];
+    data.officers.forEach(o => {
+        const color = o.color;
+        o.stops.forEach(s => {
+            allLats.push(s.lat); allLons.push(s.lon);
+            const icon = L.divIcon({ html:'<div style="background:'+color+';color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);">'+s.stop_num+'</div>', className:'', iconSize:[22,22], iconAnchor:[11,11] });
+            const m = L.marker([s.lat,s.lon],{icon}).bindPopup('<strong>Officer '+o.officer_id+' Stop '+s.stop_num+'</strong><br>'+s.police_station+'<br>Expected: '+s.expected_violations+' violations<br>ETA: '+s.eta).addTo(plannerMap);
+            plannerMarkers.push(m);
+        });
+        if (o.stops.length>1) { const poly=L.polyline(o.stops.map(s=>[s.lat,s.lon]),{color,weight:2.5,opacity:.7,dashArray:'6,5'}).addTo(plannerMap); plannerMarkers.push(poly); }
+    });
+    if (allLats.length) plannerMap.fitBounds([[Math.min(...allLats)-.005,Math.min(...allLons)-.005],[Math.max(...allLats)+.005,Math.max(...allLons)+.005]]);
+    if (cards) cards.innerHTML = data.officers.map(o =>
+        '<div class="officer-card" style="border-color:'+o.color+'20;">' +
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;"><div style="width:9px;height:9px;border-radius:50%;background:'+o.color+';flex-shrink:0;"></div><div><div style="font-size:12px;font-weight:700;">Officer '+o.officer_id+'</div><div style="font-size:10px;color:var(--t2);">'+o.shift+' | '+o.n_stops+' stops | '+o.total_expected_violations+' expected violations</div></div></div>' +
+        o.stops.map(s => '<div style="display:flex;gap:7px;font-size:10px;color:var(--t2);padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);"><span style="color:var(--t3);font-weight:700;min-width:16px;">'+s.stop_num+'</span><span>'+s.police_station+'</span><span style="color:var(--amber);font-weight:600;margin-left:auto;">'+s.eta+'</span></div>').join('') +
+        '</div>'
+    ).join('');
+}
+
+// ─── STATION COMPARISON ──────────────────────────────────────────────────────
+async function loadStationComparison() {
+    try {
+        const d = await fetch('/api/station-comparison').then(r => r.json());
+        stationData = d.stations || [];
+        stationTableData = [...stationData];
+        if (!stationData.length) return;
+        const best = stationData[0], worst = stationData[stationData.length-1];
+        const avg = (stationData.reduce((s,r)=>s+r.overall_score,0)/stationData.length).toFixed(1);
+        document.getElementById('stationSummaryCards').innerHTML =
+            '<div class="card"><div class="stat-lbl">Best Overall</div><div class="stat-val c-green" style="font-size:17px;margin-top:4px;">'+best.station+'</div><div class="stat-sub">Score: '+best.overall_score+'</div></div>' +
+            '<div class="card"><div class="stat-lbl">City Average</div><div class="stat-val c-blue">'+avg+'</div><div class="stat-sub">Overall / 100</div></div>' +
+            '<div class="card"><div class="stat-lbl">Needs Review</div><div class="stat-val c-amber" style="font-size:17px;margin-top:4px;">'+worst.station+'</div><div class="stat-sub">Score: '+worst.overall_score+'</div></div>';
+        updateStationChart();
+        renderStationTable(stationTableData);
+    } catch(e) { console.error('station comparison', e); }
+}
+
+function updateStationChart() {
+    const sel = document.getElementById('stationMetricSel');
+    const metric = sel?.value || 'overall_score';
+    const label = sel?.options[sel.selectedIndex]?.text || 'Overall Score';
+    document.getElementById('stationChartTitle').textContent = 'Top 20 Stations by ' + label;
+    const sorted = [...stationData].sort((a,b)=>b[metric]-a[metric]).slice(0,20);
+    const ctx = document.getElementById('stationChart');
+    if (charts.station) charts.station.destroy();
+    charts.station = new Chart(ctx, { type:'bar', data: {
+        labels: sorted.map(s => s.station.replace(' Police Station','')),
+        datasets: [{ data:sorted.map(s=>s[metric]), backgroundColor:sorted.map((_,i)=>'hsl('+(220+i*5)+',65%,'+(50+i)+'%)'), borderRadius:3, borderSkipped:false }]
+    }, options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#5a6380',font:{size:9}},grid:{color:'rgba(255,255,255,.03)'}}, y:{ticks:{color:'#8b95b0',font:{size:10}},grid:{display:false}} } } });
+}
+
+function renderStationTable(data) {
+    document.getElementById('stationTableBody').innerHTML = data.map(r =>
+        '<tr><td>'+r.rank+'</td><td>'+r.station+'</td><td>'+r.overall_score+'<div class="score-bar"><div class="score-fill" style="width:'+r.overall_score+'%;background:#3b82f6;"></div></div></td><td>'+r.quality_score+'</td><td>'+r.coverage_score+'</td><td>'+r.responsiveness_score+'</td><td>'+r.balance_score+'</td><td>'+(r.total_violations||0).toLocaleString()+'</td></tr>'
+    ).join('');
+}
+
+function sortStationTable(key) {
+    if (stationSortKey===key) stationSortAsc=!stationSortAsc; else { stationSortKey=key; stationSortAsc=true; }
+    stationTableData.sort((a,b) => stationSortAsc?(a[key]>b[key]?1:-1):(a[key]<b[key]?1:-1));
+    renderStationTable(stationTableData);
+}
+
+// ─── TEMPORAL PATTERNS ───────────────────────────────────────────────────────
+async function loadTemporalPatterns() {
+    if (document.getElementById('hmGrid')?.innerHTML) return;
+    try {
+        const d = await fetch('/api/temporal-matrix').then(r => r.json());
+        const days = d.day_names;
+        document.getElementById('temporalInsightCards').innerHTML =
+            '<div class="card"><div class="stat-lbl">4-7 AM Violations</div><div class="stat-val c-red">'+((d.early_morning_count||0)/1000).toFixed(0)+'K</div><div class="stat-sub">'+d.early_morning_pct+'% of total</div></div>' +
+            '<div class="card"><div class="stat-lbl">Evening Peak (17-20h)</div><div class="stat-val c-amber">'+((d.peak_evening_count||0)/1000).toFixed(0)+'K</div><div class="stat-sub">violations</div></div>' +
+            '<div class="card"><div class="stat-lbl">Morning / Evening Ratio</div><div class="stat-val c-purple">'+((d.early_morning_count||1)/Math.max(d.peak_evening_count||1,1)).toFixed(1)+'x</div><div class="stat-sub">early morning is higher</div></div>';
+        // Hour headers
+        const headers = document.getElementById('hmHourHeaders');
+        if (headers) headers.innerHTML = '<div style="width:55px;"></div>' + [...Array(24).keys()].map(h=>'<div style="flex:1;text-align:center;font-size:8px;color:var(--t3);">'+h+'</div>').join('');
+        // Grid
+        let allVals = [];
+        days.forEach(day => { for(let h=0;h<24;h++) allVals.push(d.matrix[day][h]||0); });
+        const maxV = Math.max(...allVals, 1);
+        const grid = document.getElementById('hmGrid');
+        if (grid) grid.innerHTML = days.map(day => {
+            const cells = [...Array(24).keys()].map(h => {
+                const v = d.matrix[day][h]||0;
+                const ratio = v/maxV;
+                const r2=Math.round(ratio*3*255), g2=Math.round((1-ratio)*200), b2=Math.round((1-ratio)*255);
+                const bg = ratio<.001 ? '#1a1f35' : ratio<.3 ? 'rgb(0,'+Math.round(ratio*3*120)+','+Math.round(ratio*3*255)+')' : ratio<.65 ? 'rgb('+Math.round((ratio-.3)*3*255)+','+Math.round((1-ratio)*200)+',0)' : 'rgb(255,'+Math.round((1-ratio)*200)+',0)';
+                return '<div class="hm-cell" style="background:'+bg+'" title="'+day+' '+h+':00 - '+(v.toLocaleString())+' violations"></div>';
+            }).join('');
+            return '<div style="display:grid;grid-template-columns:55px repeat(24,1fr);gap:2px;margin-bottom:2px;"><div style="display:flex;align-items:center;justify-content:flex-end;font-size:9px;color:var(--t3);padding-right:5px;">'+day.slice(0,3)+'</div>'+cells+'</div>';
+        }).join('');
+        // Hourly bar chart
+        const ctx = document.getElementById('temporalHourlyChart');
+        if (ctx) {
+            if (charts.tempHourly) charts.tempHourly.destroy();
+            const hrs = [...Array(24).keys()];
+            const vals = hrs.map(h=>d.hourly_total[h]||0);
+            charts.tempHourly = new Chart(ctx, { type:'bar', data:{
+                labels:hrs.map(h=>h+':00'),
+                datasets:[{ data:vals, backgroundColor:hrs.map(h=>(h>=4&&h<7)?'#ef4444':(h>=17&&h<20)?'#f59e0b':'#3b82f6'), borderRadius:2, borderSkipped:false }]
+            }, options:chartOpts('Violations') });
+        }
+    } catch(e) { console.error('temporal matrix', e); }
+}
+
+// ─── GAP ANALYSIS ────────────────────────────────────────────────────────────
+async function loadGapAnalysis() {
+    try {
+        const d = await fetch('/api/gap-analysis').then(r => r.json());
+        gapData = d.stations || [];
+        const methods = [
+            { key:'diversity_norm', title:'Method 1: Vehicle Diversity Gap', color:'#3b82f6', desc:'High vehicle variety + low violations may indicate under-recorded areas. Formula: unique_vehicle_types / log(violations)' },
+            { key:'coverage_norm', title:'Method 2: Time Coverage Gap', color:'#8b5cf6', desc:'Stations with fewer active hours may have unrecorded time windows. Formula: (24 - active_hours) / 24' },
+            { key:'junction_norm', title:'Method 3: Junction Density Gap', color:'#ec4899', desc:'Many junctions + few violations = spread-thin enforcement. Formula: junctions / total_violations' },
+        ];
+        document.getElementById('gapMethods').innerHTML = methods.map(m => {
+            const sorted = [...gapData].sort((a,b)=>b[m.key]-a[m.key]).slice(0,10);
+            return '<div class="method-card"><div style="font-size:13px;font-weight:700;color:'+m.color+';margin-bottom:4px;">'+m.title+'</div><div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.5;">'+m.desc+'</div>' +
+                sorted.map(s=>'<div class="bar-item"><span class="bar-name">'+s.station.replace(' Police Station','')+'</span><div class="bar-track"><div class="bar-fill" style="width:'+s[m.key]+'%;background:'+m.color+';"></div></div><span class="bar-val">'+s[m.key]+'</span></div>').join('') + '</div>';
+        }).join('');
+        const ctx = document.getElementById('gapCombinedChart');
+        if (ctx) {
+            if (charts.gap) charts.gap.destroy();
+            const top = gapData.slice(0,20);
+            charts.gap = new Chart(ctx, { type:'bar', data:{
+                labels:top.map(s=>s.station.replace(' Police Station','')),
+                datasets:[
+                    { label:'Diversity (40%)', data:top.map(s=>s.diversity_norm*.4), backgroundColor:'#3b82f6', borderRadius:2 },
+                    { label:'Coverage (35%)', data:top.map(s=>s.coverage_norm*.35), backgroundColor:'#8b5cf6', borderRadius:2 },
+                    { label:'Junction (25%)', data:top.map(s=>s.junction_norm*.25), backgroundColor:'#ec4899', borderRadius:2 },
+                ]
+            }, options:{ indexAxis:'y', responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#8b95b0',font:{size:9},padding:8,usePointStyle:true}}}, scales:{x:{stacked:true,ticks:{color:'#5a6380',font:{size:9}},grid:{color:'rgba(255,255,255,.03)'}},y:{stacked:true,ticks:{color:'#8b95b0',font:{size:9}},grid:{display:false}}} } });
+        }
+    } catch(e) { console.error('gap analysis', e); }
+}
+
+// ─── VEHICLE PROFILES ────────────────────────────────────────────────────────
+async function loadVehicleProfiles() {
+    try {
+        const d = await fetch('/api/vehicle-profiles').then(r => r.json());
+        vehicleAllData = d;
+        renderVehicleTable(d);
+        renderVehicleOverview(d);
+    } catch(e) { console.error('vehicle profiles', e); }
+}
+
+function renderVehicleOverview(d) {
+    const el = document.getElementById('vehicleTopRow');
+    if (!el) return;
+    el.innerHTML = '<div class="card"><div class="card-title">Most Common Vehicle Citywide</div><div class="stat-val c-blue" style="font-size:20px;margin:6px 0;">'+((d.top_vehicle_types||[])[0]||'N/A')+'</div><div style="font-size:11px;color:var(--t2);">Dominant across most stations citywide.</div></div>' +
+        '<div class="card"><div class="card-title">Stations Analyzed</div><div class="stat-val c-green">'+(d.stations||[]).length+'</div><div class="stat-sub">police stations</div></div>';
+}
+
+async function loadVehicleProfile(station) {
+    if (station === 'all') { renderVehicleOverview(vehicleAllData); return; }
+    try {
+        const d = await fetch('/api/vehicle-profiles?station=' + encodeURIComponent(station)).then(r => r.json());
+        const COLORS = ['#3b82f6','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#a78bfa'];
+        const el = document.getElementById('vehicleTopRow');
+        if (!el) return;
+        el.innerHTML = '<div class="card"><div class="card-title">'+d.station+' - Vehicle Distribution</div><canvas id="vehicleDonut" style="max-height:180px;"></canvas></div>' +
+            '<div class="card"><div class="card-title">Dominant Vehicle</div><div class="stat-val c-blue" style="font-size:18px;margin-bottom:8px;">'+d.dominant_vehicle+'</div><div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:10px;">'+d.enforcement_note+'</div>' +
+            d.distribution.map((item,i)=>'<div class="d-row"><span class="d-lbl" style="color:'+COLORS[i%COLORS.length]+'">'+item.type+'</span><span class="d-val">'+item.pct+'% ('+item.count.toLocaleString()+')</span></div>').join('') + '</div>';
+        setTimeout(() => {
+            const ctx = document.getElementById('vehicleDonut');
+            if (!ctx) return;
+            if (charts.vehicleDonut) charts.vehicleDonut.destroy();
+            charts.vehicleDonut = new Chart(ctx, { type:'doughnut', data:{
+                labels:d.distribution.map(x=>x.type),
+                datasets:[{ data:d.distribution.map(x=>x.count), backgroundColor:COLORS, borderWidth:0, hoverOffset:6 }]
+            }, options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#8b95b0',font:{size:9},padding:7,usePointStyle:true}}}} });
+        }, 50);
+    } catch(e) { console.error('vehicle profile', e); }
+}
+
+function renderVehicleTable(d) {
+    const types = d.top_vehicle_types || [];
+    document.getElementById('vehicleTableHead').innerHTML = '<tr><th>Station</th><th>Total</th>'+types.map(t=>'<th>'+t+'</th>').join('')+'<th>Dominant</th></tr>';
+    document.getElementById('vehicleTableBody').innerHTML = (d.stations||[]).slice(0,30).map(s =>
+        '<tr><td>'+s.station+'</td><td>'+(s.total||0).toLocaleString()+'</td>'+types.map(t=>'<td>'+(s[t]||0)+'%</td>').join('')+'<td>'+s.dominant+'</td></tr>'
+    ).join('');
+}
+
+// ─── WEEKDAY vs WEEKEND ──────────────────────────────────────────────────────
+async function loadWeekendSplit() {
+    try {
+        const d = await fetch('/api/weekend-split').then(r => r.json());
+        weekendData = d.stations || [];
+        weekendTableData = [...weekendData];
+        document.getElementById('weekendInsightCards').innerHTML =
+            '<div class="card"><div class="stat-lbl">Highest Weekend %</div><div class="stat-val c-pink">'+d.max_weekend_pct+'%</div><div class="stat-sub">'+d.max_station+'</div></div>' +
+            '<div class="card"><div class="stat-lbl">City Average</div><div class="stat-val c-blue">'+d.city_avg_weekend_pct+'%</div><div class="stat-sub">Expected ~28.6% (2/7 days)</div></div>' +
+            '<div class="card"><div class="stat-lbl">Lowest Weekend %</div><div class="stat-val c-green">'+d.min_weekend_pct+'%</div><div class="stat-sub">'+d.min_station+'</div></div>';
+        // Scatter
+        const ctx = document.getElementById('weekendScatter');
+        if (ctx) {
+            if (charts.weekend) charts.weekend.destroy();
+            const pts = weekendData.map(s => ({ x:s.weekday_count, y:s.weekend_count, label:s.station.replace(' Police Station','') }));
+            charts.weekend = new Chart(ctx, { type:'scatter', data:{ datasets:[{ data:pts, backgroundColor:'rgba(59,130,246,.5)', pointRadius:5, pointHoverRadius:8, borderColor:'#3b82f6', borderWidth:1 }] }, options:{ responsive:true, plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.label+': '+ctx.raw.x+' weekday, '+ctx.raw.y+' weekend'}}}, scales:{ x:{title:{display:true,text:'Weekday Violations',color:'#5a6380',font:{size:9}},ticks:{color:'#5a6380',font:{size:9}},grid:{color:'rgba(255,255,255,.03)'}}, y:{title:{display:true,text:'Weekend Violations',color:'#5a6380',font:{size:9}},ticks:{color:'#5a6380',font:{size:9}},grid:{color:'rgba(255,255,255,.03)'}} } } });
+        }
+        // Bars
+        document.getElementById('weekendBars').innerHTML = weekendData.slice(0,10).map(s =>
+            '<div class="bar-item"><span class="bar-name">'+s.station.replace(' Police Station','')+'</span><div class="bar-track"><div class="bar-fill" style="width:'+Math.min(s.weekend_pct*2.3,100)+'%;background:linear-gradient(90deg,#3b82f6,#ec4899);"></div></div><span class="bar-val">'+s.weekend_pct+'%</span></div>'
+        ).join('');
+        renderWeekendTable(weekendTableData);
+    } catch(e) { console.error('weekend split', e); }
+}
+
+function renderWeekendTable(data) {
+    document.getElementById('weekendTableBody').innerHTML = data.map(s =>
+        '<tr><td>'+s.station+'</td><td>'+(s.total||0).toLocaleString()+'</td><td>'+(s.weekday_count||0).toLocaleString()+'</td><td>'+(s.weekend_count||0).toLocaleString()+'</td><td><span style="color:'+(s.weekend_pct>35?'#ec4899':s.weekend_pct<20?'#10b981':'#f59e0b')+'">'+s.weekend_pct+'%</span></td></tr>'
+    ).join('');
+}
+
+function sortWeekendTable(key) {
+    if (weekendSortKey===key) weekendSortAsc=!weekendSortAsc; else { weekendSortKey=key; weekendSortAsc=(key==='station'); }
+    weekendTableData.sort((a,b) => weekendSortAsc?(a[key]>b[key]?1:-1):(a[key]<b[key]?1:-1));
+    renderWeekendTable(weekendTableData);
+}
 </script>
 </body>
 </html>

@@ -268,9 +268,11 @@ PATROL_SPEED_KMPH = 20
 # Create a .env file at project root with:
 #   TOMTOM_API_KEY=your_key_here
 #   GEMINI_API_KEY=your_key_here
+#   NVIDIA_API_KEY=your_key_here
 
 TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
 # ============================================
 # LOGGING
