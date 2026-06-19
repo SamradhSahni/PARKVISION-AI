@@ -552,7 +552,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);overflo
         </div>
         <div class="grid-3" id="weekendInsightCards" style="margin-bottom:14px;"></div>
         <div class="grid-2">
-            <div class="card"><div class="card-title">Weekend % per Station (Scatter)</div><canvas id="weekendScatter"></canvas></div>
+            <div class="card"><div class="card-title">weekend vs weekday per station scatter plot(Percentage)</div><canvas id="weekendScatter"></canvas></div>
             <div class="card"><div class="card-title">Top Weekend-Heavy Stations</div><div id="weekendBars"></div></div>
         </div>
         <div class="card" style="margin-top:14px;"><div class="card-title">All Stations</div><div style="overflow-x:auto;"><table class="data-table"><thead><tr><th onclick="sortWeekendTable('station')">Station</th><th onclick="sortWeekendTable('total')">Total</th><th onclick="sortWeekendTable('weekday_count')">Weekday</th><th onclick="sortWeekendTable('weekend_count')">Weekend</th><th onclick="sortWeekendTable('weekend_pct')">Weekend %</th></tr></thead><tbody id="weekendTableBody"></tbody></table></div></div>
@@ -1373,8 +1373,8 @@ async function loadWeekendSplit() {
         const ctx = document.getElementById('weekendScatter');
         if (ctx) {
             if (charts.weekend) charts.weekend.destroy();
-            const pts = weekendData.map(s => ({ x:s.weekday_count, y:s.weekend_count, label:s.station.replace(' Police Station','') }));
-            charts.weekend = new Chart(ctx, { type:'scatter', data:{ datasets:[{ data:pts, backgroundColor:'rgba(59,130,246,.5)', pointRadius:5, pointHoverRadius:8, borderColor:'#3b82f6', borderWidth:1 }] }, options:{ responsive:true, plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.label+': '+ctx.raw.x+' weekday, '+ctx.raw.y+' weekend'}}}, scales:{ x:{title:{display:true,text:'Weekday Violations',color:'#5a6380',font:{size:9}},ticks:{color:'#5a6380',font:{size:9}},grid:{color:'rgba(255,255,255,.03)'}}, y:{title:{display:true,text:'Weekend Violations',color:'#5a6380',font:{size:9}},ticks:{color:'#5a6380',font:{size:9}},grid:{color:'rgba(255,255,255,.03)'}} } } });
+            const pts = weekendData.map(s => ({ x:s.weekday_pct, y:s.weekend_pct, label:s.station.replace(' Police Station','') }));
+            charts.weekend = new Chart(ctx, { type:'scatter', data:{ datasets:[{ data:pts, backgroundColor:'rgba(59,130,246,.5)', pointRadius:5, pointHoverRadius:8, borderColor:'#3b82f6', borderWidth:1 }] }, options:{ responsive:true, plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.label+': '+ctx.raw.x+'% weekday, '+ctx.raw.y+'% weekend'}}}, scales:{ x:{title:{display:true,text:'Weekday Violations (%)',color:'#5a6380',font:{size:9}},ticks:{color:'#5a6380',font:{size:9},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.03)'}}, y:{title:{display:true,text:'Weekend Violations (%)',color:'#5a6380',font:{size:9}},ticks:{color:'#5a6380',font:{size:9},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.03)'}} } } });
         }
         // Bars
         document.getElementById('weekendBars').innerHTML = weekendData.slice(0,10).map(s =>
