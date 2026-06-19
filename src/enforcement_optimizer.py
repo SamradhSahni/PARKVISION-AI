@@ -193,20 +193,33 @@ def compute_chr_metric(df: pd.DataFrame, hex_stats: pd.DataFrame) -> pd.DataFram
     # Based on severity: higher severity = longer parked illegally
     hex_chr["avg_duration_hours"] = (0.5 + hex_chr["avg_severity"] * 2.0).clip(0.5, 4.0)
 
-    # Road capacity affected (vehicles per hour)
-    hex_chr["capacity_affected_vph"] = (
-        hex_chr["avg_capacity_reduction"] * hex_chr["avg_road_lanes"].clip(lower=1) * LANE_CAPACITY_VPH
+    # --- CHR Calculation ---
+    # CHR = Congestion Hours Recovered (hours of congestion saved per day)
+    # Represents the number of hours saved in a single day if violations
+    # are stopped from this area.
+    #
+    # Model: Violations arrive throughout the day. Multiple violations can
+    # overlap in time (concurrent). We use a Poisson model to estimate
+    # the expected hours per day with at least one active violation:
+    #
+    #   λ = violations_per_hour = daily_frequency / operating_hours
+    #   P(at least 1 active violation in a given hour) = 1 - exp(-λ × duration)
+    #   affected_hours = operating_hours × P(at least 1)
+    #   CHR = affected_hours × avg_capacity_reduction
+    #
+    # This naturally handles concurrency: 60 violations/day don't give 120 hrs,
+    # they saturate towards the operating hours (most hours have violations).
+
+    operating_hours = 18  # typical active traffic hours (~6AM to midnight)
+    violations_per_hour = hex_chr["daily_frequency"] / operating_hours
+
+    # Expected hours with at least one active violation (Poisson model)
+    affected_hours = operating_hours * (
+        1 - np.exp(-violations_per_hour * hex_chr["avg_duration_hours"])
     )
 
-    # --- CHR Calculation ---
-    # CHR = PCIS × daily_frequency × avg_duration × capacity_affected
-    # Units: dimensionless × violations/day × hours × veh/hr = vehicle-hours/day
-    hex_chr["chr"] = (
-        hex_chr["pcis_mean"]
-        * hex_chr["daily_frequency"]
-        * hex_chr["avg_duration_hours"]
-        * hex_chr["capacity_affected_vph"]
-    )
+    # CHR = hours with active violations × fraction of road capacity blocked
+    hex_chr["chr"] = (affected_hours * hex_chr["avg_capacity_reduction"]).round(2)
 
     # Normalize CHR to [0, 100] scale for interpretability
     chr_max = hex_chr["chr"].max()
@@ -241,8 +254,8 @@ def compute_chr_metric(df: pd.DataFrame, hex_stats: pd.DataFrame) -> pd.DataFram
     hex_chr["priority_rank"] = range(1, len(hex_chr) + 1)
 
     logger.info(f"  Computed CHR for {len(hex_chr):,} hexagons")
-    logger.info(f"  Total CHR: {hex_chr['chr'].sum():,.0f} vehicle-hours/day recoverable")
-    logger.info(f"  Top hex CHR: {hex_chr['chr'].iloc[0]:,.0f}")
+    logger.info(f"  Total CHR: {hex_chr['chr'].sum():,.1f} hrs/day recoverable")
+    logger.info(f"  Top hex CHR: {hex_chr['chr'].iloc[0]:,.1f} hrs/day")
 
     tier_counts = hex_chr["priority_tier"].value_counts()
     for tier, cnt in tier_counts.items():
@@ -301,10 +314,10 @@ def save_and_summarize(stations_gdf, hex_chr):
 
     # CHR summary
     print(f"\n  --- CongestionHoursRecovered (CHR) Summary ---")
-    print(f"  Total recoverable:  {hex_chr['chr'].sum():>12,.0f} vehicle-hours/day")
-    print(f"  Top 20 hexagons:    {hex_chr['chr'].head(20).sum():>12,.0f} vehicle-hours/day "
+    print(f"  Total recoverable:  {hex_chr['chr'].sum():>12,.1f} hrs/day")
+    print(f"  Top 20 hexagons:    {hex_chr['chr'].head(20).sum():>12,.1f} hrs/day "
           f"({hex_chr['chr'].head(20).sum() / hex_chr['chr'].sum() * 100:.1f}%)")
-    print(f"  Top 50 hexagons:    {hex_chr['chr'].head(50).sum():>12,.0f} vehicle-hours/day "
+    print(f"  Top 50 hexagons:    {hex_chr['chr'].head(50).sum():>12,.1f} hrs/day "
           f"({hex_chr['chr'].head(50).sum() / hex_chr['chr'].sum() * 100:.1f}%)")
 
     # Priority tiers
@@ -314,7 +327,7 @@ def save_and_summarize(stations_gdf, hex_chr):
         if len(tier_data) > 0:
             chr_total = tier_data["chr"].sum()
             print(f"    {tier:10s}: {len(tier_data):>5} hexagons, "
-                  f"CHR={chr_total:>10,.0f} veh-hrs/day")
+                  f"CHR={chr_total:>10,.1f} hrs/day")
 
     # Top 20 enforcement priorities
     print(f"\n  --- Top 20 Enforcement Priorities (by CHR) ---")

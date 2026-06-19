@@ -414,12 +414,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);overflo
                 <input type="range" id="endHour" min="1" max="24" value="12" style="width:100%;accent-color:var(--blue);" oninput="document.getElementById('endHourLabel').textContent=this.value+':00'">
             </div>
             <div class="form-group">
-                <label class="form-label">Number of Officers</label>
+                <label class="form-label">No. of Patrol Units</label>
                 <div class="stepper">
                     <button class="stepper-btn" onclick="changeOfficers(-1)">-</button>
-                    <span class="stepper-val" id="officerCount">3</span>
+                    <input type="number" id="officerCount" value="3" min="1" max="150" style="width:50px;text-align:center;background:var(--bg3);border:1px solid var(--border);color:var(--t1);border-radius:var(--rs);height:26px;font-weight:700;margin:0 4px;" onchange="updateOfficers(this.value)">
                     <button class="stepper-btn" onclick="changeOfficers(1)">+</button>
-                    <span style="font-size:10px;color:var(--t3);margin-left:4px;">max 5</span>
+                    <span style="font-size:10px;color:var(--t3);margin-left:4px;">max 150</span>
                 </div>
             </div>
             <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="generatePlan()" id="generateBtn">Generate Patrol Plan</button>
@@ -756,7 +756,7 @@ async function loadSummary() {
         const d = await api('/api/summary');
         if (!d) return;
         const sv = document.getElementById('mapStatViolations'); if(sv) sv.textContent = (d.total_violations||0).toLocaleString();
-        const sc = document.getElementById('mapStatCHR'); if(sc) sc.textContent = ((d.total_chr||0)/1e6).toFixed(1)+'M';
+        const sc = document.getElementById('mapStatCHR'); if(sc) sc.textContent = (d.total_chr||0).toFixed(0)+' hrs';
         const alerts = (d.tiers?.URGENT||0)+(d.tiers?.HIGH||0);
         const sa = document.getElementById('mapStatAlerts'); if(sa) sa.textContent = alerts;
         if (d.tiers) renderTierChart(d.tiers);
@@ -1053,7 +1053,7 @@ function renderFilterResultsGrid(items) {
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;">' +
         '<div style="background:rgba(59,130,246,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">PCIS</div><div style="font-size:17px;font-weight:800;color:var(--blue);">' + (h.pcis_mean||0).toFixed(3) + '</div></div>' +
         '<div style="background:rgba(139,92,246,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">Violations</div><div style="font-size:17px;font-weight:800;color:var(--purple);">' + (h.violation_count||0).toLocaleString() + '</div></div>' +
-        '<div style="background:rgba(245,158,11,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">CHR</div><div style="font-size:14px;font-weight:800;color:var(--amber);">' + ((h.chr||0)/1000).toFixed(0) + 'K</div></div>' +
+        '<div style="background:rgba(245,158,11,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">CHR (hrs/day)</div><div style="font-size:14px;font-weight:800;color:var(--amber);">' + (h.chr||0).toFixed(1) + '</div></div>' +
         '<div style="background:rgba(16,185,129,.06);border-radius:6px;padding:7px;"><div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;">Peak Hour</div><div style="font-size:14px;font-weight:800;color:var(--green);">' + (h.peak_hour||0) + ':00</div></div>' +
         '</div>' +
         '<div style="height:3px;background:rgba(255,255,255,.04);border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + (h.chr_normalized||0) + '%;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ec4899);border-radius:2px;"></div></div>' +
@@ -1131,8 +1131,18 @@ function selectPlannerDay(btn, day) {
 }
 
 function changeOfficers(delta) {
-    plannerOfficers = Math.max(1, Math.min(5, plannerOfficers + delta));
-    document.getElementById('officerCount').textContent = plannerOfficers;
+    const input = document.getElementById('officerCount');
+    let val = parseInt(input.value) || 3;
+    plannerOfficers = Math.max(1, Math.min(150, val + delta));
+    input.value = plannerOfficers;
+}
+
+function updateOfficers(val) {
+    let parsed = parseInt(val);
+    if (isNaN(parsed) || parsed < 1) parsed = 1;
+    if (parsed > 150) parsed = 150;
+    plannerOfficers = parsed;
+    document.getElementById('officerCount').value = plannerOfficers;
 }
 
 async function generatePlan() {
@@ -1147,7 +1157,7 @@ async function generatePlan() {
         const d = await api('/api/planner', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
         if (!d) return;
         if (d.error) { if(status) status.textContent='Error: '+d.error; document.getElementById('officerCards').innerHTML='<div style="color:var(--red);font-size:12px;padding:16px;">'+d.error+'</div>'; }
-        else { if(status) status.textContent = 'Found '+d.total_zones_found+' zones for '+d.officers.length+' officers'; renderPlannerResult(d); }
+        else { if(status) status.textContent = 'Found '+d.total_zones_found+' zones for '+d.officers.length+' patrol units'; renderPlannerResult(d); }
     } catch(e) { if(status) status.textContent='Network error: '+e.message; }
     if (btn) { btn.disabled=false; btn.textContent='Generate Patrol Plan'; }
 }
@@ -1160,7 +1170,7 @@ function renderPlannerResult(data) {
         o.stops.forEach(s => {
             allLats.push(s.lat); allLons.push(s.lon);
             const icon = L.divIcon({ html:'<div style="background:'+color+';color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);">'+s.stop_num+'</div>', className:'', iconSize:[22,22], iconAnchor:[11,11] });
-            const m = L.marker([s.lat,s.lon],{icon}).bindPopup('<strong>Officer '+o.officer_id+' Stop '+s.stop_num+'</strong><br>'+s.police_station+'<br>Expected: '+s.expected_violations+' violations<br>ETA: '+s.eta).addTo(plannerMap);
+            const m = L.marker([s.lat,s.lon],{icon}).bindPopup('<strong>Patrol Unit '+o.officer_id+' Stop '+s.stop_num+'</strong><br>'+s.police_station+'<br>Expected: '+s.expected_violations+' violations<br>ETA: '+s.eta).addTo(plannerMap);
             plannerMarkers.push(m);
         });
         if (o.stops.length>1) { const poly=L.polyline(o.stops.map(s=>[s.lat,s.lon]),{color,weight:2.5,opacity:.7,dashArray:'6,5'}).addTo(plannerMap); plannerMarkers.push(poly); }
@@ -1168,7 +1178,7 @@ function renderPlannerResult(data) {
     if (allLats.length) plannerMap.fitBounds([[Math.min(...allLats)-.005,Math.min(...allLons)-.005],[Math.max(...allLats)+.005,Math.max(...allLons)+.005]]);
     if (cards) cards.innerHTML = data.officers.map(o =>
         '<div class="officer-card" style="border-color:'+o.color+'20;">' +
-        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;"><div style="width:9px;height:9px;border-radius:50%;background:'+o.color+';flex-shrink:0;"></div><div><div style="font-size:12px;font-weight:700;">Officer '+o.officer_id+'</div><div style="font-size:10px;color:var(--t2);">'+o.shift+' | '+o.n_stops+' stops | '+o.total_expected_violations+' expected violations</div></div></div>' +
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;"><div style="width:9px;height:9px;border-radius:50%;background:'+o.color+';flex-shrink:0;"></div><div><div style="font-size:12px;font-weight:700;">Patrol Unit '+o.officer_id+'</div><div style="font-size:10px;color:var(--t2);">'+o.shift+' | '+o.n_stops+' stops | '+o.total_expected_violations+' expected violations</div></div></div>' +
         o.stops.map(s => '<div style="display:flex;gap:7px;font-size:10px;color:var(--t2);padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);"><span style="color:var(--t3);font-weight:700;min-width:16px;">'+s.stop_num+'</span><span>'+s.police_station+'</span><span style="color:var(--amber);font-weight:600;margin-left:auto;">'+s.eta+'</span></div>').join('') +
         '</div>'
     ).join('');

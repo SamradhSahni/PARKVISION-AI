@@ -47,11 +47,8 @@ EARTH_RADIUS_M = 6_371_000
 # STEP 1: Run DBSCAN at 3 spatial scales
 # ============================================
 def run_multiscale_dbscan(df: pd.DataFrame) -> pd.DataFrame:
-    """Run spatial DBSCAN at micro, meso, macro scales."""
+    """Run spatial DBSCAN at micro, meso, macro scales with memory & performance optimization."""
     logger.info("Running multi-scale ST-DBSCAN clustering ...")
-
-    # Convert lat/lon to radians (required for haversine metric)
-    coords_rad = np.radians(df[["latitude", "longitude"]].values)
 
     for scale_name, params in STDBSCAN_PARAMS.items():
         eps_m = params["eps_spatial_m"]
@@ -64,7 +61,35 @@ def run_multiscale_dbscan(df: pd.DataFrame) -> pd.DataFrame:
             f"  [{scale_name.upper()}] eps={eps_m}m ({eps_rad:.6f} rad), min_pts={min_pts} ..."
         )
 
-        # Run DBSCAN with haversine metric (uses BallTree — efficient for large datasets)
+        # Optimize by clustering unique coordinates to prevent MemoryError (bad allocation) on large dense datasets
+        # Rounding coordinates slightly based on scale helps reduce redundant queries in dense areas:
+        # Micro (50m) -> 5 decimal places (~1.1m resolution)
+        # Meso (150m) -> 4 decimal places (~11m resolution)
+        # Macro (500m) -> 3 decimal places (~110m resolution)
+        if scale_name == "micro":
+            decimals = 5
+        elif scale_name == "meso":
+            decimals = 4
+        else: # macro
+            decimals = 3
+
+        # Round latitude and longitude to get unique spatial grid bins
+        rounded_coords = np.column_stack([
+            np.round(df["latitude"].values, decimals),
+            np.round(df["longitude"].values, decimals)
+        ])
+
+        # Get unique coordinates, mapping indices, and frequencies (sample weights)
+        unique_coords_deg, inverse_indices, counts = np.unique(
+            rounded_coords, axis=0, return_inverse=True, return_counts=True
+        )
+
+        # Convert unique coordinates to radians for haversine distance
+        unique_coords_rad = np.radians(unique_coords_deg)
+
+        logger.info(f"    Clustering {len(unique_coords_rad):,} unique bins (reduced from {len(df):,})")
+
+        # Run DBSCAN with sample_weight on unique coordinates
         db = DBSCAN(
             eps=eps_rad,
             min_samples=min_pts,
@@ -72,7 +97,8 @@ def run_multiscale_dbscan(df: pd.DataFrame) -> pd.DataFrame:
             algorithm="ball_tree",
             n_jobs=-1,
         )
-        labels = db.fit_predict(coords_rad)
+        unique_labels = db.fit(unique_coords_rad, sample_weight=counts).labels_
+        labels = unique_labels[inverse_indices]
 
         col_name = f"cluster_{scale_name}"
         df[col_name] = labels

@@ -422,7 +422,7 @@ async def run_planner(payload: dict, user: User = Depends(get_current_user)):
     day = payload.get("day", "Monday")
     start_h = int(payload.get("start_hour", 8))
     end_h = int(payload.get("end_hour", 12))
-    n_officers = max(1, min(5, int(payload.get("n_officers", 3))))
+    n_officers = max(1, min(150, int(payload.get("n_officers", 3))))
 
     df = _scoped_violations(user)
     if df is None:
@@ -459,8 +459,11 @@ async def run_planner(payload: dict, user: User = Depends(get_current_user)):
     max_zones = n_officers * 8
     top_zones = agg.nlargest(max_zones, "priority").reset_index(drop=True)
 
+    if len(top_zones) == 0:
+        return {"error": "No hotspots found for this time window", "officers": []}
+
     if len(top_zones) < n_officers:
-        return {"error": "Too few hotspots for this time window", "officers": []}
+        n_officers = len(top_zones)
 
     coords = top_zones[["lat","lon"]].values
     if len(top_zones) == n_officers:
@@ -470,7 +473,11 @@ async def run_planner(payload: dict, user: User = Depends(get_current_user)):
         top_zones["cluster"] = km.fit_predict(coords)
 
     shift_hours = end_h - start_h
-    colors = ["#3b82f6","#ec4899","#10b981","#f59e0b","#8b5cf6"]
+    colors = [
+        "#3b82f6", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6",
+        "#06b6d4", "#14b8a6", "#f43f5e", "#84cc16", "#a855f7",
+        "#6366f1", "#f97316", "#e11d48", "#059669", "#d97706"
+    ]
     officers = []
 
     for officer_id in range(n_officers):

@@ -239,7 +239,7 @@ You have deep expertise in:
   3. Temporal Demand Multiplier (20%) — hour/day demand curves
   4. Vehicle Obstruction Factor (15%) — movement hindrance per vehicle type
   5. Network Criticality (15%) — betweenness centrality of the road
-- CHR (Congestion Hours Recovered) — enforcement ROI metric in vehicle-hours/day
+- CHR (Congestion Hours Recovered) — hours of congestion saved per day if violations are stopped (max 24 hrs)
 - H3 hexagonal indexing at resolution 9 (~174m edge length)
 - XGBoost violation count predictions (next 7 days)
 - ACO (Ant Colony Optimization) patrol routing across 5 shifts

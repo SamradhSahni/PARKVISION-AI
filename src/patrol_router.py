@@ -342,7 +342,7 @@ def generate_daily_brief(
 ## Executive Summary
 
 PARKVISION AI has analyzed **207,781 parking violations** across **2,420 H3 hexagonal zones** in Bengaluru
-and identified enforcement opportunities that could recover an estimated **{total_chr:,.0f} vehicle-hours/day**
+and identified enforcement opportunities that could recover an estimated **{total_chr:,.1f} hrs/day**
 of congestion. This brief highlights the top priorities and optimized patrol routes.
 
 ---
@@ -358,12 +358,12 @@ of congestion. This brief highlights the top priorities and optimized patrol rou
     if len(urgent) > 0:
         brief += f"> [!CAUTION]\n"
         brief += f"> **{len(urgent)} URGENT** zone(s) require immediate deployment. "
-        brief += f"Combined CHR: {urgent['chr'].sum():,.0f} veh-hrs/day.\n\n"
+        brief += f"Combined CHR: {urgent['chr'].sum():,.1f} hrs/day.\n\n"
 
     if len(high) > 0:
         brief += f"> [!WARNING]\n"
         brief += f"> **{len(high)} HIGH** priority zone(s) need prioritized enforcement. "
-        brief += f"Combined CHR: {high['chr'].sum():,.0f} veh-hrs/day.\n\n"
+        brief += f"Combined CHR: {high['chr'].sum():,.1f} hrs/day.\n\n"
 
     brief += f"> [!IMPORTANT]\n"
     brief += f"> **{len(medium)} MEDIUM** priority zones flagged for scheduled enforcement.\n\n"
@@ -435,8 +435,8 @@ of congestion. This brief highlights the top priorities and optimized patrol rou
 
 ### Enforcement ROI
 - Deploying **8 patrol units** across optimized routes could cover the top {min(100, len(priorities[priorities['priority_tier'].isin(['URGENT', 'HIGH', 'MEDIUM'])]))} priority zones
-- Estimated congestion recovery: **{top20['chr'].sum():,.0f} veh-hrs/day** from top 20 zones alone
-- This equals approximately **{top20['chr'].sum()/8:,.0f} veh-hrs/day per patrol unit**
+- Estimated congestion recovery: **{top20['chr'].sum():,.1f} hrs/day** from top 20 zones alone
+- This equals approximately **{top20['chr'].sum()/8:,.1f} hrs/day per patrol unit**
 
 ### Addiction Zones (Chronic Hotspots)
 - **38 hexagons** show Location Memory Score > 0.5 (active >50% of observation days)
@@ -447,7 +447,7 @@ of congestion. This brief highlights the top priorities and optimized patrol rou
 
 ## Recommended Actions
 
-1. **IMMEDIATE**: Deploy to URGENT zone (Upparpet central, CHR=177,322)
+1. **IMMEDIATE**: Deploy to URGENT zone (top priority area, CHR={priorities.iloc[0]['chr']:.1f} hrs/day)
 2. **TODAY**: Execute morning shift routes from Upparpet, Shivajinagar, City Market depots
 3. **THIS WEEK**: Install signage at top 10 addiction zones
 4. **THIS MONTH**: Coordinate with BBMP for infrastructure interventions at persistent hotspots
