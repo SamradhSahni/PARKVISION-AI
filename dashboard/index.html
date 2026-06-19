@@ -41,6 +41,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);overflo
 .nav-label{font-size:11px;font-weight:600;color:var(--t2);opacity:0;transition:opacity .12s;}
 .nav-item.active .nav-label{color:var(--blue);}
 .sidebar:hover .nav-label{opacity:1;}
+.sidebar:hover #userBadge{opacity:1;}
+.admin-only.station-hidden{display:none !important;}
 
 /* APP */
 .app{margin-left:58px;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
@@ -206,23 +208,29 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);overflo
         <div class="nav-item active" onclick="showPage('map')" id="nav-map">
             <span class="nav-icon">[M]</span><span class="nav-label">Violation Map</span>
         </div>
-        <div class="nav-item" onclick="showPage('stations')" id="nav-stations">
-            <span class="nav-icon">[S]</span><span class="nav-label">Station Comparison</span>
+        <div class="nav-item" onclick="showPage('chat')" id="nav-chat">
+            <span class="nav-icon">[A]</span><span class="nav-label">AI Chat</span>
         </div>
         <div class="nav-item" onclick="showPage('temporal')" id="nav-temporal">
             <span class="nav-icon">[T]</span><span class="nav-label">Temporal Patterns</span>
         </div>
-        <div class="nav-item" onclick="showPage('gaps')" id="nav-gaps">
+        <div class="nav-item admin-only" onclick="showPage('stations')" id="nav-stations">
+            <span class="nav-icon">[S]</span><span class="nav-label">Station Comparison</span>
+        </div>
+        <div class="nav-item admin-only" onclick="showPage('gaps')" id="nav-gaps">
             <span class="nav-icon">[G]</span><span class="nav-label">Gap Analysis</span>
         </div>
         <div class="nav-item" onclick="showPage('vehicles')" id="nav-vehicles">
             <span class="nav-icon">[V]</span><span class="nav-label">Vehicle Profiles</span>
         </div>
-        <div class="nav-item" onclick="showPage('weekend')" id="nav-weekend">
+        <div class="nav-item admin-only" onclick="showPage('weekend')" id="nav-weekend">
             <span class="nav-icon">[W]</span><span class="nav-label">Weekday vs Weekend</span>
         </div>
-        <div class="nav-item" onclick="showPage('chat')" id="nav-chat">
-            <span class="nav-icon">[A]</span><span class="nav-label">AI Chat</span>
+    </div>
+    <div style="padding:8px 0 12px;border-top:1px solid var(--border);flex-shrink:0;">
+        <div id="userBadge" style="padding:8px 14px;font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden;opacity:0;transition:opacity .12s;"></div>
+        <div class="nav-item" onclick="logout()" style="border-left-color:transparent;">
+            <span class="nav-icon">[X]</span><span class="nav-label">Sign Out</span>
         </div>
     </div>
 </nav>
@@ -303,7 +311,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);overflo
     <div style="flex:1;display:grid;grid-template-columns:280px 1fr;overflow:hidden;">
         <!-- LEFT: filters -->
         <div style="border-right:1px solid var(--border);overflow-y:auto;padding:18px;background:var(--bg2);">
-            <div class="form-group">
+            <div class="form-group" id="f2StationGroup">
                 <label class="form-label">Police Station</label>
                 <select class="form-select" id="f2Station">
                     <option value="">All Stations</option>
@@ -525,7 +533,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);overflo
     </div>
     <div class="page-layout">
         <div class="grid-2" id="vehicleTopRow"></div>
-        <div class="card" style="margin-top:14px;"><div class="card-title">Multi-Station Vehicle Type Comparison (%)</div><div style="overflow-x:auto;"><table class="data-table"><thead id="vehicleTableHead"></thead><tbody id="vehicleTableBody"></tbody></table></div></div>
+        <div class="card" id="vehicleTableWrap" style="margin-top:14px;"><div class="card-title">Multi-Station Vehicle Type Comparison (%)</div><div style="overflow-x:auto;"><table class="data-table"><thead id="vehicleTableHead"></thead><tbody id="vehicleTableBody"></tbody></table></div></div>
     </div>
 </div>
 
@@ -627,6 +635,62 @@ let f2Results = [];
 let plannerMarkers = [];
 let _tomtomKey = '';
 let activeRouteShift = 'all';
+let currentUser = { role: 'admin', station_name: null, display_name: 'City Command' };
+
+async function api(path, opts = {}) {
+    const r = await fetch(path, { credentials: 'include', ...opts });
+    if (r.status === 401) { window.location.href = '/login'; return null; }
+    const ct = r.headers.get('content-type') || '';
+    if (!r.ok) {
+        let detail = r.statusText;
+        if (ct.includes('application/json')) {
+            try { const j = await r.json(); detail = j.detail || detail; } catch(e) {}
+        } else {
+            detail = await r.text();
+        }
+        throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    }
+    if (ct.includes('application/json')) return r.json();
+    return r.text();
+}
+
+async function logout() {
+    try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch(e) {}
+    window.location.href = '/login';
+}
+
+function applyRoleUI() {
+    const isStation = currentUser.role === 'station';
+    document.querySelectorAll('.admin-only').forEach(el => {
+        el.classList.toggle('station-hidden', isStation);
+    });
+    const badge = document.getElementById('userBadge');
+    if (badge) badge.textContent = currentUser.display_name || '';
+    const stationGroup = document.getElementById('f2StationGroup');
+    if (stationGroup) stationGroup.style.display = isStation ? 'none' : 'block';
+    const vehicleSel = document.getElementById('vehicleStationSel');
+    if (vehicleSel) vehicleSel.style.display = isStation ? 'none' : 'block';
+    const vehicleTable = document.getElementById('vehicleTableWrap');
+    if (vehicleTable) vehicleTable.style.display = isStation ? 'none' : 'block';
+}
+
+function fitMapToHotspots(items) {
+    if (!map || !items || !items.length) return;
+    const lats = items.map(h => h.centroid_lat).filter(Boolean);
+    const lons = items.map(h => h.centroid_lon).filter(Boolean);
+    if (!lats.length) return;
+    map.fitBounds([
+        [Math.min(...lats) - 0.008, Math.min(...lons) - 0.008],
+        [Math.max(...lats) + 0.008, Math.max(...lons) + 0.008]
+    ], { maxZoom: 14 });
+}
+
+function updateTopbarScope(titleEl) {
+    if (currentUser.role === 'station' && currentUser.station_name && titleEl) {
+        const sub = titleEl.parentElement?.querySelector('.topbar-sub');
+        if (sub) sub.textContent = currentUser.station_name + ' · Station jurisdiction';
+    }
+}
 
 // PAGE NAV
 function showPage(page) {
@@ -669,17 +733,28 @@ function initPlannerMap() {
 // STARTUP
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const cfg = await fetch('/api/config').then(r => r.json());
-        if (cfg.has_tomtom) { _tomtomKey = cfg.tomtom_api_key; console.log('TomTom tiles OK'); }
-    } catch(e) { console.warn('Config fetch failed, using CartoDB'); }
+        currentUser = await api('/api/auth/me');
+        if (!currentUser) return;
+        applyRoleUI();
+        const cfg = await api('/api/config');
+        if (cfg && cfg.has_tomtom) { _tomtomKey = cfg.tomtom_api_key; console.log('TomTom tiles OK'); }
+    } catch(e) {
+        window.location.href = '/login';
+        return;
+    }
     initMap();
     await Promise.all([loadSummary(), loadHotspots(), loadTemporal(), loadPredictions(), loadVehicleStationList()]);
+    if (currentUser.role === 'station') {
+        showPage('map');
+        if (currentUser.station_name) loadVehicleProfile(currentUser.station_name);
+    }
 });
 
 // SUMMARY
 async function loadSummary() {
     try {
-        const d = await fetch('/api/summary').then(r => r.json());
+        const d = await api('/api/summary');
+        if (!d) return;
         const sv = document.getElementById('mapStatViolations'); if(sv) sv.textContent = (d.total_violations||0).toLocaleString();
         const sc = document.getElementById('mapStatCHR'); if(sc) sc.textContent = ((d.total_chr||0)/1e6).toFixed(1)+'M';
         const alerts = (d.tiers?.URGENT||0)+(d.tiers?.HIGH||0);
@@ -692,10 +767,12 @@ async function loadSummary() {
 async function loadHotspots(params) {
     try {
         const url = '/api/hotspots?n=200' + (params || '');
-        const d = await fetch(url).then(r => r.json());
+        const d = await api(url);
+        if (!d) return;
         hotspots = d.hotspots || [];
         renderHeatmap(hotspots);
-        renderFilterResults(hotspots); // also populate filter page
+        renderFilterResults(hotspots);
+        if (currentUser.role === 'station') fitMapToHotspots(hotspots);
     } catch(e) { console.error('hotspots', e); }
 }
 
@@ -752,7 +829,8 @@ async function loadRoutes(shiftOverride) {
     const shift = (shiftOverride !== undefined && shiftOverride !== null) ? shiftOverride : (activeRouteShift === 'all' ? null : activeRouteShift);
     const url = shift ? '/api/patrol-routes?shift=' + shift : '/api/patrol-routes';
     try {
-        const geojson = await fetch(url).then(r => r.json());
+        const geojson = await api(url);
+        if (!geojson) return;
         if (routeLayer) { try{map.removeLayer(routeLayer);}catch(e){} }
         const clrs = { morning:'#f59e0b', midday:'#3b82f6', afternoon:'#8b5cf6', evening:'#ec4899', night:'#06b6d4' };
         routeLayer = L.geoJSON(geojson, {
@@ -771,7 +849,8 @@ async function selectRouteShift(shift, btn) {
 
 async function loadStationMarkers() {
     try {
-        const geojson = await fetch('/api/stations').then(r => r.json());
+        const geojson = await api('/api/stations');
+        if (!geojson) return;
         if (stationLayer) { try{map.removeLayer(stationLayer);}catch(e){} }
         stationLayer = L.geoJSON(geojson, {
             pointToLayer: (f,ll) => L.circleMarker(ll, {radius:7,fillColor:'#10b981',color:'#065f46',weight:2,fillOpacity:.9}),
@@ -801,7 +880,8 @@ function switchMiniTab(name, btn) {
 // ANALYTICS CHARTS
 async function loadTemporal() {
     try {
-        const d = await fetch('/api/temporal/city').then(r => r.json());
+        const d = await api('/api/temporal/city');
+        if (!d) return;
         renderHourlyChart(d.hourly);
         renderDailyChart(d.daily);
     } catch(e) {}
@@ -809,7 +889,7 @@ async function loadTemporal() {
 
 async function loadPredictions() {
     try {
-        const d = await fetch('/api/predict').then(r => r.json());
+        await api('/api/predict');
         // predictions chart not needed on map page (removed chartPredict canvas)
     } catch(e) {}
 }
@@ -865,7 +945,8 @@ function chartOpts(yLabel) {
 // ─── FILTER HOTSPOTS PAGE ────────────────────────────────────────────────────
 async function loadVehicleStationList() {
     try {
-        const d = await fetch('/api/filter-options').then(r => r.json());
+        const d = await api('/api/filter-options');
+        if (!d) return;
         // Populate station dropdowns
         ['f2Station','vehicleStationSel'].forEach(id => {
             const sel = document.getElementById(id);
@@ -911,7 +992,8 @@ async function applyHotspotFilters() {
     const el = document.getElementById('hotspotResults');
     if (el) el.innerHTML = '<div style="color:var(--t3);font-size:13px;text-align:center;padding:60px;">Fetching results...</div>';
     try {
-        const d = await fetch('/api/hotspots?n=200' + params).then(r => r.json());
+        const d = await api('/api/hotspots?n=200' + params);
+        if (!d) return;
         f2Results = d.hotspots || [];
         const badge = document.getElementById('filterResultBadge');
         if (badge) badge.textContent = f2Results.length + ' results';
@@ -992,7 +1074,9 @@ async function sendChat() {
     if (sendBtn) sendBtn.disabled = true;
     addChatMsg('<span class="spinner"></span> Thinking...', 'bot', true);
     try {
-        const d = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:msg}) }).then(r => r.json());
+        const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify({query:msg}) });
+        if (r.status === 401) { window.location.href = '/login'; return; }
+        const d = await r.json();
         const msgs = document.getElementById('chatMessages');
         if (msgs && msgs.lastChild) msgs.lastChild.remove();
         addChatMsg('<strong>PARKVISION AI</strong><br>' + fmtResponse(d.response||'No response received.'), 'bot', true);
@@ -1018,7 +1102,7 @@ function clearChat() {
 
 async function resetChat() {
     try {
-        await fetch('/api/chat/reset', { method:'POST' });
+        await fetch('/api/chat/reset', { method:'POST', credentials:'include' });
     } catch(e) { console.warn('Reset failed', e); }
     const el = document.getElementById('chatMessages');
     if (el) el.innerHTML = '<div class="chat-msg bot"><strong>PARKVISION AI</strong><br>Conversation reset. I have a fresh context. How can I help you?</div>';
@@ -1060,7 +1144,8 @@ async function generatePlan() {
     plannerMarkers = [];
     try {
         const payload = { day:plannerDay, start_hour:parseInt(document.getElementById('startHour').value), end_hour:parseInt(document.getElementById('endHour').value), n_officers:plannerOfficers };
-        const d = await fetch('/api/planner', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).then(r => r.json());
+        const d = await api('/api/planner', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        if (!d) return;
         if (d.error) { if(status) status.textContent='Error: '+d.error; document.getElementById('officerCards').innerHTML='<div style="color:var(--red);font-size:12px;padding:16px;">'+d.error+'</div>'; }
         else { if(status) status.textContent = 'Found '+d.total_zones_found+' zones for '+d.officers.length+' officers'; renderPlannerResult(d); }
     } catch(e) { if(status) status.textContent='Network error: '+e.message; }
@@ -1092,7 +1177,8 @@ function renderPlannerResult(data) {
 // ─── STATION COMPARISON ──────────────────────────────────────────────────────
 async function loadStationComparison() {
     try {
-        const d = await fetch('/api/station-comparison').then(r => r.json());
+        const d = await api('/api/station-comparison');
+        if (!d) return;
         stationData = d.stations || [];
         stationTableData = [...stationData];
         if (!stationData.length) return;
@@ -1137,7 +1223,8 @@ function sortStationTable(key) {
 async function loadTemporalPatterns() {
     if (document.getElementById('hmGrid')?.innerHTML) return;
     try {
-        const d = await fetch('/api/temporal-matrix').then(r => r.json());
+        const d = await api('/api/temporal-matrix');
+        if (!d) return;
         const days = d.day_names;
         document.getElementById('temporalInsightCards').innerHTML =
             '<div class="card"><div class="stat-lbl">4-7 AM Violations</div><div class="stat-val c-red">'+((d.early_morning_count||0)/1000).toFixed(0)+'K</div><div class="stat-sub">'+d.early_morning_pct+'% of total</div></div>' +
@@ -1178,7 +1265,8 @@ async function loadTemporalPatterns() {
 // ─── GAP ANALYSIS ────────────────────────────────────────────────────────────
 async function loadGapAnalysis() {
     try {
-        const d = await fetch('/api/gap-analysis').then(r => r.json());
+        const d = await api('/api/gap-analysis');
+        if (!d) return;
         gapData = d.stations || [];
         const methods = [
             { key:'diversity_norm', title:'Method 1: Vehicle Diversity Gap', color:'#3b82f6', desc:'High vehicle variety + low violations may indicate under-recorded areas. Formula: unique_vehicle_types / log(violations)' },
@@ -1209,10 +1297,16 @@ async function loadGapAnalysis() {
 // ─── VEHICLE PROFILES ────────────────────────────────────────────────────────
 async function loadVehicleProfiles() {
     try {
-        const d = await fetch('/api/vehicle-profiles').then(r => r.json());
+        const d = await api('/api/vehicle-profiles');
+        if (!d) return;
         vehicleAllData = d;
         renderVehicleTable(d);
-        renderVehicleOverview(d);
+        if (currentUser.role === 'station' && currentUser.station_name) {
+            renderVehicleOverview(d);
+            loadVehicleProfile(currentUser.station_name);
+        } else {
+            renderVehicleOverview(d);
+        }
     } catch(e) { console.error('vehicle profiles', e); }
 }
 
@@ -1226,7 +1320,8 @@ function renderVehicleOverview(d) {
 async function loadVehicleProfile(station) {
     if (station === 'all') { renderVehicleOverview(vehicleAllData); return; }
     try {
-        const d = await fetch('/api/vehicle-profiles?station=' + encodeURIComponent(station)).then(r => r.json());
+        const d = await api('/api/vehicle-profiles?station=' + encodeURIComponent(station));
+        if (!d) return;
         const COLORS = ['#3b82f6','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#a78bfa'];
         const el = document.getElementById('vehicleTopRow');
         if (!el) return;
@@ -1256,7 +1351,8 @@ function renderVehicleTable(d) {
 // ─── WEEKDAY vs WEEKEND ──────────────────────────────────────────────────────
 async function loadWeekendSplit() {
     try {
-        const d = await fetch('/api/weekend-split').then(r => r.json());
+        const d = await api('/api/weekend-split');
+        if (!d) return;
         weekendData = d.stations || [];
         weekendTableData = [...weekendData];
         document.getElementById('weekendInsightCards').innerHTML =

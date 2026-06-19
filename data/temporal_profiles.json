@@ -1061,66 +1061,6 @@
     "avg_severity": 0.58,
     "police_station": "Byatarayanapura"
   },
-  "8960145a613ffff": {
-    "hourly_counts": [
-      0,
-      0,
-      1,
-      1,
-      9,
-      4,
-      14,
-      0,
-      0,
-      0,
-      4,
-      9,
-      1,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 6,
-    "hourly_concentration": 0.1688825008983112,
-    "daily_counts": [
-      0,
-      3,
-      4,
-      1,
-      9,
-      22,
-      5
-    ],
-    "peak_day": "Sat",
-    "weekend_ratio": 0.6136363636363636,
-    "monthly_counts": {
-      "1": 1,
-      "2": 5,
-      "3": 9,
-      "4": 7,
-      "11": 3,
-      "12": 19
-    },
-    "dominant_periods_hours": [
-      24.0,
-      6.0,
-      8.0
-    ],
-    "spectral_energy": 3858.0,
-    "temporal_pattern": "weekend_spike",
-    "violation_count": 44,
-    "unique_days": 17,
-    "avg_severity": 0.5920454545454547,
-    "police_station": "Basavanagudi"
-  },
   "8960145a683ffff": {
     "hourly_counts": [
       0,
@@ -1299,125 +1239,6 @@
     "violation_count": 188,
     "unique_days": 59,
     "avg_severity": 0.5789893617021274,
-    "police_station": "Basavanagudi"
-  },
-  "8960145a693ffff": {
-    "hourly_counts": [
-      0,
-      0,
-      0,
-      4,
-      2,
-      4,
-      4,
-      0,
-      0,
-      0,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 3,
-    "hourly_concentration": 0.20231884057971017,
-    "daily_counts": [
-      4,
-      0,
-      0,
-      0,
-      3,
-      7,
-      1
-    ],
-    "peak_day": "Sat",
-    "weekend_ratio": 0.5333333333333333,
-    "monthly_counts": {
-      "1": 2,
-      "2": 6,
-      "3": 3,
-      "4": 1,
-      "12": 3
-    },
-    "dominant_periods_hours": [
-      24.0,
-      12.0,
-      8.0
-    ],
-    "spectral_energy": 524.0,
-    "temporal_pattern": "nighttime_hotspot",
-    "violation_count": 15,
-    "unique_days": 7,
-    "avg_severity": 0.5666666666666665,
-    "police_station": "Basavanagudi"
-  },
-  "8960145a6d7ffff": {
-    "hourly_counts": [
-      0,
-      2,
-      40,
-      79,
-      77,
-      78,
-      53,
-      20,
-      62,
-      65,
-      101,
-      81,
-      44,
-      17,
-      5,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 10,
-    "hourly_concentration": 0.05635146774465399,
-    "daily_counts": [
-      131,
-      65,
-      104,
-      103,
-      104,
-      67,
-      150
-    ],
-    "peak_day": "Sun",
-    "weekend_ratio": 0.29972375690607733,
-    "monthly_counts": {
-      "1": 158,
-      "2": 146,
-      "3": 78,
-      "4": 109,
-      "11": 115,
-      "12": 118
-    },
-    "dominant_periods_hours": [
-      24.0,
-      8.0,
-      6.0
-    ],
-    "spectral_energy": 340488.0,
-    "temporal_pattern": "mixed_pattern",
-    "violation_count": 724,
-    "unique_days": 124,
-    "avg_severity": 0.5851519337016573,
     "police_station": "Basavanagudi"
   },
   "8960145b003ffff": {
@@ -2189,65 +2010,6 @@
     "avg_severity": 0.5845132743362831,
     "police_station": "Malleshwaram"
   },
-  "8960145b083ffff": {
-    "hourly_counts": [
-      0,
-      1,
-      3,
-      3,
-      3,
-      1,
-      1,
-      0,
-      2,
-      0,
-      8,
-      11,
-      3,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 11,
-    "hourly_concentration": 0.14009661835748793,
-    "daily_counts": [
-      13,
-      2,
-      8,
-      5,
-      3,
-      3,
-      2
-    ],
-    "peak_day": "Mon",
-    "weekend_ratio": 0.1388888888888889,
-    "monthly_counts": {
-      "1": 5,
-      "2": 4,
-      "3": 9,
-      "11": 13,
-      "12": 5
-    },
-    "dominant_periods_hours": [
-      8.0,
-      24.0,
-      12.0
-    ],
-    "spectral_energy": 2096.0,
-    "temporal_pattern": "mixed_pattern",
-    "violation_count": 36,
-    "unique_days": 19,
-    "avg_severity": 0.5597222222222222,
-    "police_station": "High ground"
-  },
   "8960145b087ffff": {
     "hourly_counts": [
       0,
@@ -2305,66 +2067,6 @@
     "violation_count": 155,
     "unique_days": 58,
     "avg_severity": 0.5677419354838709,
-    "police_station": "Sheshadripuram"
-  },
-  "8960145b08bffff": {
-    "hourly_counts": [
-      0,
-      0,
-      0,
-      1,
-      6,
-      0,
-      5,
-      5,
-      6,
-      5,
-      13,
-      6,
-      0,
-      2,
-      0,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 10,
-    "hourly_concentration": 0.10594782608695652,
-    "daily_counts": [
-      6,
-      10,
-      3,
-      8,
-      7,
-      9,
-      7
-    ],
-    "peak_day": "Tue",
-    "weekend_ratio": 0.32,
-    "monthly_counts": {
-      "1": 6,
-      "2": 16,
-      "3": 7,
-      "4": 1,
-      "11": 10,
-      "12": 10
-    },
-    "dominant_periods_hours": [
-      24.0,
-      12.0,
-      3.4
-    ],
-    "spectral_energy": 3096.0,
-    "temporal_pattern": "mixed_pattern",
-    "violation_count": 50,
-    "unique_days": 31,
-    "avg_severity": 0.622,
     "police_station": "Sheshadripuram"
   },
   "8960145b097ffff": {
@@ -2665,66 +2367,6 @@
     "unique_days": 62,
     "avg_severity": 0.597766323024055,
     "police_station": "Rajajinagar"
-  },
-  "8960145b10fffff": {
-    "hourly_counts": [
-      0,
-      11,
-      40,
-      27,
-      30,
-      27,
-      19,
-      7,
-      31,
-      27,
-      87,
-      44,
-      20,
-      4,
-      0,
-      8,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 10,
-    "hourly_concentration": 0.0721078155037226,
-    "daily_counts": [
-      45,
-      68,
-      53,
-      35,
-      46,
-      75,
-      60
-    ],
-    "peak_day": "Sat",
-    "weekend_ratio": 0.35340314136125656,
-    "monthly_counts": {
-      "1": 59,
-      "2": 113,
-      "3": 72,
-      "4": 13,
-      "11": 24,
-      "12": 101
-    },
-    "dominant_periods_hours": [
-      24.0,
-      8.0,
-      6.0
-    ],
-    "spectral_energy": 123598.0,
-    "temporal_pattern": "mixed_pattern",
-    "violation_count": 382,
-    "unique_days": 79,
-    "avg_severity": 0.6841623036649214,
-    "police_station": "Vijayanagara"
   },
   "8960145b113ffff": {
     "hourly_counts": [
@@ -3796,66 +3438,6 @@
     "violation_count": 32,
     "unique_days": 14,
     "avg_severity": 0.6234375,
-    "police_station": "Malleshwaram"
-  },
-  "8960145b2a7ffff": {
-    "hourly_counts": [
-      0,
-      9,
-      23,
-      88,
-      161,
-      214,
-      211,
-      248,
-      239,
-      249,
-      222,
-      166,
-      45,
-      33,
-      3,
-      11,
-      9,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 9,
-    "hourly_concentration": 0.06436956917604396,
-    "daily_counts": [
-      293,
-      177,
-      188,
-      282,
-      303,
-      253,
-      435
-    ],
-    "peak_day": "Sun",
-    "weekend_ratio": 0.3562920766442258,
-    "monthly_counts": {
-      "1": 218,
-      "2": 486,
-      "3": 340,
-      "4": 136,
-      "11": 293,
-      "12": 458
-    },
-    "dominant_periods_hours": [
-      24.0,
-      12.0,
-      6.0
-    ],
-    "spectral_energy": 2765728.0,
-    "temporal_pattern": "mixed_pattern",
-    "violation_count": 1931,
-    "unique_days": 136,
-    "avg_severity": 0.5815380631796996,
     "police_station": "Malleshwaram"
   },
   "8960145b2afffff": {
@@ -6596,6 +6178,66 @@
     "avg_severity": 0.5830659025787964,
     "police_station": "Upparpet"
   },
+  "8960145b563ffff": {
+    "hourly_counts": [
+      0,
+      0,
+      1,
+      2,
+      1,
+      2,
+      3,
+      2,
+      0,
+      8,
+      3,
+      8,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "peak_hour": 9,
+    "hourly_concentration": 0.1420289855072464,
+    "daily_counts": [
+      14,
+      5,
+      3,
+      3,
+      1,
+      1,
+      3
+    ],
+    "peak_day": "Mon",
+    "weekend_ratio": 0.13333333333333333,
+    "monthly_counts": {
+      "1": 3,
+      "2": 7,
+      "3": 4,
+      "4": 4,
+      "11": 4,
+      "12": 8
+    },
+    "dominant_periods_hours": [
+      24.0,
+      2.0,
+      2.2
+    ],
+    "spectral_energy": 1568.0,
+    "temporal_pattern": "mixed_pattern",
+    "violation_count": 30,
+    "unique_days": 16,
+    "avg_severity": 0.5866666666666667,
+    "police_station": "Magadi Road"
+  },
   "8960145b567ffff": {
     "hourly_counts": [
       0,
@@ -9212,6 +8854,66 @@
     "avg_severity": 0.6866666666666666,
     "police_station": "HAL Old Airport"
   },
+  "89618920ba3ffff": {
+    "hourly_counts": [
+      0,
+      6,
+      35,
+      66,
+      16,
+      11,
+      13,
+      18,
+      68,
+      8,
+      11,
+      0,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "peak_hour": 8,
+    "hourly_concentration": 0.13925497416212226,
+    "daily_counts": [
+      100,
+      12,
+      23,
+      37,
+      41,
+      35,
+      6
+    ],
+    "peak_day": "Mon",
+    "weekend_ratio": 0.16141732283464566,
+    "monthly_counts": {
+      "1": 26,
+      "2": 66,
+      "3": 57,
+      "4": 25,
+      "11": 34,
+      "12": 46
+    },
+    "dominant_periods_hours": [
+      24.0,
+      6.0,
+      4.8
+    ],
+    "spectral_energy": 103896.0,
+    "temporal_pattern": "nighttime_hotspot",
+    "violation_count": 254,
+    "unique_days": 47,
+    "avg_severity": 0.7458661417322834,
+    "police_station": "HAL Old Airport"
+  },
   "89618920bb7ffff": {
     "hourly_counts": [
       0,
@@ -9741,6 +9443,65 @@
     "violation_count": 250,
     "unique_days": 34,
     "avg_severity": 0.5639999999999998,
+    "police_station": "Jayanagara"
+  },
+  "8961892591bffff": {
+    "hourly_counts": [
+      0,
+      1,
+      1,
+      1,
+      0,
+      4,
+      0,
+      0,
+      2,
+      0,
+      0,
+      4,
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "peak_hour": 5,
+    "hourly_concentration": 0.14666666666666667,
+    "daily_counts": [
+      0,
+      1,
+      9,
+      2,
+      0,
+      0,
+      3
+    ],
+    "peak_day": "Wed",
+    "weekend_ratio": 0.2,
+    "monthly_counts": {
+      "2": 8,
+      "3": 1,
+      "4": 1,
+      "11": 1,
+      "12": 4
+    },
+    "dominant_periods_hours": [
+      2.7,
+      3.0,
+      24.0
+    ],
+    "spectral_energy": 404.0,
+    "temporal_pattern": "nighttime_hotspot",
+    "violation_count": 15,
+    "unique_days": 6,
+    "avg_severity": 0.5866666666666666,
     "police_station": "Jayanagara"
   },
   "8961892596fffff": {
@@ -10698,66 +10459,6 @@
     "unique_days": 130,
     "avg_severity": 0.5900877645844089,
     "police_station": "Halasuru Gate"
-  },
-  "89618925c63ffff": {
-    "hourly_counts": [
-      0,
-      2,
-      0,
-      2,
-      4,
-      5,
-      8,
-      3,
-      12,
-      5,
-      3,
-      19,
-      17,
-      4,
-      1,
-      7,
-      3,
-      3,
-      4,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 11,
-    "hourly_concentration": 0.0618324055965097,
-    "daily_counts": [
-      17,
-      15,
-      15,
-      11,
-      5,
-      19,
-      20
-    ],
-    "peak_day": "Sun",
-    "weekend_ratio": 0.38235294117647056,
-    "monthly_counts": {
-      "1": 20,
-      "2": 31,
-      "3": 21,
-      "4": 3,
-      "11": 8,
-      "12": 19
-    },
-    "dominant_periods_hours": [
-      24.0,
-      3.4,
-      6.0
-    ],
-    "spectral_energy": 7400.0,
-    "temporal_pattern": "mixed_pattern",
-    "violation_count": 102,
-    "unique_days": 28,
-    "avg_severity": 0.5656862745098037,
-    "police_station": "Adugodi"
   },
   "89618925c7bffff": {
     "hourly_counts": [
@@ -11825,6 +11526,65 @@
     "violation_count": 219,
     "unique_days": 78,
     "avg_severity": 0.6239726027397259,
+    "police_station": "K.R. Pura"
+  },
+  "8961892e2a7ffff": {
+    "hourly_counts": [
+      4,
+      24,
+      4,
+      0,
+      1,
+      1,
+      0,
+      1,
+      0,
+      2,
+      8,
+      8,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "peak_hour": 1,
+    "hourly_concentration": 0.22275899087493292,
+    "daily_counts": [
+      3,
+      2,
+      3,
+      12,
+      13,
+      9,
+      12
+    ],
+    "peak_day": "Fri",
+    "weekend_ratio": 0.3888888888888889,
+    "monthly_counts": {
+      "1": 18,
+      "2": 3,
+      "3": 5,
+      "11": 10,
+      "12": 18
+    },
+    "dominant_periods_hours": [
+      8.0,
+      4.8,
+      12.0
+    ],
+    "spectral_energy": 7670.0,
+    "temporal_pattern": "nighttime_hotspot",
+    "violation_count": 54,
+    "unique_days": 24,
+    "avg_severity": 0.5962962962962964,
     "police_station": "K.R. Pura"
   },
   "8961892e383ffff": {
@@ -13195,63 +12955,6 @@
     "avg_severity": 0.596636432350718,
     "police_station": "Shivajinagar"
   },
-  "8961892eba7ffff": {
-    "hourly_counts": [
-      0,
-      0,
-      0,
-      5,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "peak_hour": 3,
-    "hourly_concentration": 0.710144927536232,
-    "daily_counts": [
-      0,
-      5,
-      0,
-      1,
-      0,
-      0,
-      0
-    ],
-    "peak_day": "Tue",
-    "weekend_ratio": 0.0,
-    "monthly_counts": {
-      "1": 2,
-      "3": 1,
-      "12": 3
-    },
-    "dominant_periods_hours": [
-      3.4,
-      2.4,
-      8.0
-    ],
-    "spectral_energy": 302.0,
-    "temporal_pattern": "nighttime_hotspot",
-    "violation_count": 6,
-    "unique_days": 4,
-    "avg_severity": 0.5833333333333334,
-    "police_station": "Pulikeshinagar(F.Town)"
-  },
   "8961892ebb3ffff": {
     "hourly_counts": [
       0,
@@ -13487,66 +13190,6 @@
     "unique_days": 51,
     "avg_severity": 0.7110714285714285,
     "police_station": "Jeevanbheemanagar"
-  },
-  "8961892ed23ffff": {
-    "hourly_counts": [
-      2,
-      1,
-      3,
-      30,
-      29,
-      15,
-      9,
-      16,
-      10,
-      9,
-      5,
-      14,
-      0,
-      3,
-      12,
-      0,
-      0,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1
-    ],
-    "peak_hour": 3,
-    "hourly_concentration": 0.07366847826086956,
-    "daily_counts": [
-      12,
-      7,
-      41,
-      42,
-      32,
-      14,
-      12
-    ],
-    "peak_day": "Thu",
-    "weekend_ratio": 0.1625,
-    "monthly_counts": {
-      "1": 28,
-      "2": 17,
-      "3": 36,
-      "4": 21,
-      "11": 30,
-      "12": 28
-    },
-    "dominant_periods_hours": [
-      24.0,
-      12.0,
-      3.4
-    ],
-    "spectral_energy": 21888.0,
-    "temporal_pattern": "nighttime_hotspot",
-    "violation_count": 160,
-    "unique_days": 56,
-    "avg_severity": 0.5931249999999999,
-    "police_station": "Halasur"
   },
   "8961892ed2fffff": {
     "hourly_counts": [

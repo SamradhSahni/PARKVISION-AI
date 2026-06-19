@@ -5,6 +5,7 @@ All constants, mappings, weights, and parameters referenced in the README.
 """
 
 import os
+import hashlib
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -273,6 +274,22 @@ PATROL_SPEED_KMPH = 20
 TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+
+# ============================================
+# AUTHENTICATION
+# ============================================
+AUTH_SECRET = os.getenv("AUTH_SECRET", "parkvision-demo-secret-change-in-production")
+AUTH_COOKIE_NAME = "parkvision_token"
+SESSION_EXPIRE_HOURS = int(os.getenv("SESSION_EXPIRE_HOURS", "24"))
+USERS_FILE = DATA_DIR / "users.json"
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+STATION_PASSWORD = os.getenv("STATION_PASSWORD", "station123")
+
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(f"{AUTH_SECRET}:{password}".encode()).hexdigest()
+
 
 # ============================================
 # LOGGING

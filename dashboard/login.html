@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — PARKVISION AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg:#0a0e1a; --bg2:#111827; --card:#1a1f35;
+    --border:rgba(255,255,255,0.06);
+    --t1:#f0f4ff; --t2:#8b95b0; --t3:#5a6380;
+    --blue:#3b82f6; --purple:#8b5cf6; --pink:#ec4899;
+    --red:#ef4444; --green:#10b981;
+    --grad:linear-gradient(135deg,#3b82f6,#8b5cf6,#ec4899);
+    --r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.bg-glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(59,130,246,.12),transparent 70%);}
+.login-wrap{width:100%;max-width:420px;position:relative;z-index:1;}
+.logo-row{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:28px;}
+.logo-icon{width:44px;height:44px;background:var(--grad);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:#fff;}
+.logo-text{font-weight:800;font-size:22px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.logo-sub{text-align:center;font-size:12px;color:var(--t3);margin-top:-18px;margin-bottom:24px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:28px;box-shadow:0 24px 48px rgba(0,0,0,.35);}
+.tabs{display:flex;gap:6px;margin-bottom:22px;background:var(--bg2);padding:4px;border-radius:10px;border:1px solid var(--border);}
+.tab{flex:1;padding:10px;border:none;border-radius:8px;background:transparent;color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;}
+.tab.active{background:rgba(59,130,246,.15);color:var(--blue);}
+.form-label{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:6px;display:block;text-transform:uppercase;letter-spacing:.5px;}
+.form-input,.form-select{width:100%;padding:11px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--t1);font-size:13px;font-family:inherit;outline:none;transition:border-color .18s;}
+.form-input:focus,.form-select:focus{border-color:var(--blue);}
+.form-select option{background:#1a1f35;}
+.form-group{margin-bottom:16px;}
+.btn{width:100%;padding:12px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--blue);color:#fff;transition:all .18s;margin-top:6px;}
+.btn:hover{background:#2563eb;transform:translateY(-1px);}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.error{display:none;margin-top:14px;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:8px;font-size:12px;color:#fca5a5;}
+.error.show{display:block;}
+.hint{margin-top:18px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--t3);line-height:1.6;text-align:center;}
+.hint code{background:rgba(59,130,246,.1);padding:1px 5px;border-radius:4px;color:var(--t2);font-size:10px;}
+.panel{display:none;}
+.panel.active{display:block;}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="login-wrap">
+    <div class="logo-row">
+        <div class="logo-icon">P</div>
+        <div class="logo-text">PARKVISION AI</div>
+    </div>
+    <div class="logo-sub">Bengaluru Traffic Police — Enforcement Intelligence</div>
+
+    <div class="card">
+        <div class="tabs">
+            <button class="tab active" id="tabAdmin" onclick="setLoginType('admin')">Admin</button>
+            <button class="tab" id="tabStation" onclick="setLoginType('station')">Station</button>
+        </div>
+
+        <form id="loginForm" onsubmit="submitLogin(event)">
+            <div id="panelAdmin" class="panel active">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input class="form-input" id="adminUser" type="text" value="admin" autocomplete="username">
+                </div>
+            </div>
+
+            <div id="panelStation" class="panel">
+                <div class="form-group">
+                    <label class="form-label">Police Station</label>
+                    <select class="form-select" id="stationSel">
+                        <option value="">Loading stations...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input class="form-input" id="password" type="password" autocomplete="current-password" placeholder="Enter password">
+            </div>
+
+            <button class="btn" type="submit" id="loginBtn">Sign In</button>
+            <div class="error" id="loginError"></div>
+        </form>
+
+        <div class="hint">
+            Demo: Admin <code>admin</code> / <code>admin123</code><br>
+            Any station / <code>station123</code>
+        </div>
+    </div>
+</div>
+
+<script>
+let loginType = 'admin';
+
+function setLoginType(type) {
+    loginType = type;
+    document.getElementById('tabAdmin').classList.toggle('active', type === 'admin');
+    document.getElementById('tabStation').classList.toggle('active', type === 'station');
+    document.getElementById('panelAdmin').classList.toggle('active', type === 'admin');
+    document.getElementById('panelStation').classList.toggle('active', type === 'station');
+}
+
+async function loadStations() {
+    try {
+        const r = await fetch('/api/auth/stations');
+        if (!r.ok) {
+            const text = await r.text();
+            throw new Error(text || r.statusText);
+        }
+        const d = await r.json();
+        const sel = document.getElementById('stationSel');
+        sel.innerHTML = '<option value="">Select your station</option>';
+        (d.stations || []).forEach(s => {
+            const o = document.createElement('option');
+            o.value = s;
+            o.textContent = s;
+            sel.appendChild(o);
+        });
+    } catch (e) {
+        document.getElementById('stationSel').innerHTML = '<option value="">Could not load stations</option>';
+        console.error('stations load failed', e);
+    }
+}
+
+async function submitLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('loginError');
+    err.classList.remove('show');
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    const payload = {
+        type: loginType,
+        password: document.getElementById('password').value,
+    };
+    if (loginType === 'admin') {
+        payload.username = document.getElementById('adminUser').value.trim();
+    } else {
+        payload.station = document.getElementById('stationSel').value;
+        if (!payload.station) {
+            err.textContent = 'Please select your station.';
+            err.classList.add('show');
+            btn.disabled = false;
+            btn.textContent = 'Sign In';
+            return;
+        }
+    }
+
+    try {
+        const r = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        let d = {};
+        const ct = r.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+            d = await r.json();
+        } else {
+            const text = await r.text();
+            throw new Error(text || 'Login failed');
+        }
+        if (!r.ok) {
+            const detail = d.detail;
+            const msg = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail[0]?.msg : 'Login failed');
+            throw new Error(msg || 'Login failed');
+        }
+        window.location.href = '/';
+    } catch (ex) {
+        err.textContent = typeof ex.message === 'string' ? ex.message : 'Login failed. Check your credentials.';
+        err.classList.add('show');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+}
+
+(async () => {
+    try {
+        const me = await fetch('/api/auth/me', { credentials: 'include' });
+        if (me.ok) window.location.href = '/';
+    } catch (e) {}
+    loadStations();
+})();
+</script>
+</body>
+</html>

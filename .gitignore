@@ -34,6 +34,7 @@ data/*.pkl
 data/*.geojson
 data/*.graphml
 data/.pipeline_checkpoint.json
+data/users.json
 
 # ── Large Output Files ─────────────
 output/*.geojson

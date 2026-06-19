@@ -82,34 +82,47 @@ def _hotspot_sig():
 # ============================================
 # CONTEXT BUILDER — injects live data into prompt
 # ============================================
-def build_context() -> str:
+def build_context(station: Optional[str] = None) -> str:
     """
     Build a rich data context string from processed parquet files.
-    This is injected into the system prompt so the LLM can answer
-    accurately without needing function calls.
+    When station is set, scope all stats to that jurisdiction only.
     """
     sections = []
+    scope_label = station or "CITYWIDE"
 
     # ── 1. Top hotspots ─────────────────────────────────────────────
     try:
         df = _violations()
+        if df is not None and station:
+            df = df[df["police_station"] == station]
         if df is not None and "pcis_mean" in df.columns:
-            agg = df.groupby("police_station").agg(
-                violation_count=("pcis_mean", "count"),
-                pcis_mean=("pcis_mean", "mean"),
-                avg_chr=("chr", "mean") if "chr" in df.columns else ("pcis_mean", "count"),
-            ).reset_index().sort_values("pcis_mean", ascending=False).head(15)
-
-            rows = []
-            for _, r in agg.iterrows():
-                rows.append(f"  - {r['police_station']}: {int(r['violation_count'])} violations, PCIS={r['pcis_mean']:.3f}")
-            sections.append("TOP 15 STATIONS BY PCIS SCORE:\n" + "\n".join(rows))
+            if station:
+                agg = df.groupby("h3_index").agg(
+                    violation_count=("pcis_mean", "count"),
+                    pcis_mean=("pcis_mean", "mean"),
+                ).reset_index().sort_values("pcis_mean", ascending=False).head(10)
+                rows = []
+                for _, r in agg.iterrows():
+                    rows.append(f"  - Hex {r['h3_index']}: {int(r['violation_count'])} violations, PCIS={r['pcis_mean']:.3f}")
+                sections.append(f"TOP 10 HOTSPOT HEXAGONS IN {station.upper()}:\n" + "\n".join(rows))
+            else:
+                agg = df.groupby("police_station").agg(
+                    violation_count=("pcis_mean", "count"),
+                    pcis_mean=("pcis_mean", "mean"),
+                    avg_chr=("chr", "mean") if "chr" in df.columns else ("pcis_mean", "count"),
+                ).reset_index().sort_values("pcis_mean", ascending=False).head(15)
+                rows = []
+                for _, r in agg.iterrows():
+                    rows.append(f"  - {r['police_station']}: {int(r['violation_count'])} violations, PCIS={r['pcis_mean']:.3f}")
+                sections.append("TOP 15 STATIONS BY PCIS SCORE:\n" + "\n".join(rows))
     except Exception as e:
         logger.debug(f"Hotspot context error: {e}")
 
     # ── 2. Summary stats ────────────────────────────────────────────
     try:
         df = _violations()
+        if df is not None and station:
+            df = df[df["police_station"] == station]
         if df is not None:
             total = len(df)
             stations = df["police_station"].nunique() if "police_station" in df.columns else "N/A"
@@ -117,7 +130,7 @@ def build_context() -> str:
             peak_hour = df["hour"].mode()[0] if "hour" in df.columns else "N/A"
             top_vehicle = df["vehicle_type"].mode()[0] if "vehicle_type" in df.columns else "N/A"
             sections.append(
-                f"CITY SUMMARY:\n"
+                f"{scope_label} SUMMARY:\n"
                 f"  - Total validated violations: {total:,}\n"
                 f"  - Unique police stations: {stations}\n"
                 f"  - Average PCIS score: {avg_pcis:.4f}\n"
@@ -130,16 +143,20 @@ def build_context() -> str:
     # ── 3. Priority tiers ───────────────────────────────────────────
     try:
         df = _violations()
+        if df is not None and station:
+            df = df[df["police_station"] == station]
         if df is not None and "priority_tier" in df.columns:
-            tiers = df.groupby("police_station")["priority_tier"].first().value_counts()
-            sections.append("PRIORITY TIER DISTRIBUTION (by station):\n" +
-                "\n".join(f"  - {t}: {c} stations" for t, c in tiers.items()))
+            tiers = df["priority_tier"].value_counts()
+            sections.append(f"PRIORITY TIER DISTRIBUTION ({scope_label}):\n" +
+                "\n".join(f"  - {t}: {c}" for t, c in tiers.items()))
     except Exception as e:
         logger.debug(f"Tier context error: {e}")
 
     # ── 4. Temporal pattern ─────────────────────────────────────────
     try:
         df = _violations()
+        if df is not None and station:
+            df = df[df["police_station"] == station]
         if df is not None and "hour" in df.columns:
             hourly = df.groupby("hour").size()
             top3 = hourly.nlargest(3)
@@ -156,6 +173,8 @@ def build_context() -> str:
     # ── 5. Vehicle types ────────────────────────────────────────────
     try:
         df = _violations()
+        if df is not None and station:
+            df = df[df["police_station"] == station]
         if df is not None and "vehicle_type" in df.columns:
             vc = df["vehicle_type"].value_counts().head(8)
             sections.append("VEHICLE TYPE BREAKDOWN:\n" +
@@ -177,6 +196,8 @@ def build_context() -> str:
     # ── 7. Day of week breakdown ────────────────────────────────────
     try:
         df = _violations()
+        if df is not None and station:
+            df = df[df["police_station"] == station]
         if df is not None and "day_of_week" in df.columns:
             dow = df.groupby("day_of_week").size().sort_values(ascending=False)
             sections.append("DAY OF WEEK PATTERN:\n" +
@@ -187,6 +208,8 @@ def build_context() -> str:
     # ── 8. Enforcement priorities top 10 ───────────────────────────
     try:
         pf = _priorities()
+        if pf is not None and station:
+            pf = pf[pf["police_station"] == station]
         if pf is not None:
             sort_col = "chr" if "chr" in pf.columns else pf.columns[0]
             top10 = pf.sort_values(sort_col, ascending=False).head(10)
@@ -273,7 +296,7 @@ def create_agent():
         raise ValueError("No AI API key configured. Set NVIDIA_API_KEY or GEMINI_API_KEY in .env")
 
 
-def handle_query(agent: dict, chat, user_query: str) -> str:
+def handle_query(agent: dict, chat, user_query: str, station: Optional[str] = None) -> str:
     """
     Send a user query to the configured LLM and return the response.
     
@@ -286,17 +309,19 @@ def handle_query(agent: dict, chat, user_query: str) -> str:
         String response from the LLM.
     """
     if agent["type"] == "nvidia":
-        return _handle_nvidia(agent["client"], chat, user_query)
+        return _handle_nvidia(agent["client"], chat, user_query, station)
     elif agent["type"] == "gemini":
         return _handle_gemini(agent["model"], chat, user_query)
     else:
         return "Error: Unknown agent type."
 
 
-def _handle_nvidia(client, history: list, user_query: str) -> str:
+def _handle_nvidia(client, history: list, user_query: str, station: Optional[str] = None) -> str:
     """NVIDIA NIM handler using OpenAI-compatible API with context injection."""
-    context = build_context()
+    context = build_context(station=station)
     system_msg = SYSTEM_PROMPT.format(context=context)
+    if station:
+        system_msg += f"\n\nIMPORTANT: You are assisting officers at **{station}** station only. Do not discuss or compare other stations unless asked about city-wide methodology."
 
     messages = [{"role": "system", "content": system_msg}]
     # Add conversation history (last 10 turns to stay within context window)

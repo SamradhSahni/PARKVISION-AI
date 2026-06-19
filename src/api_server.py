@@ -17,10 +17,10 @@ from typing import Optional, List
 
 import pandas as pd
 import geopandas as gpd
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 import os
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,6 +31,11 @@ from config.settings import (
     PREDICTED_VIOLATIONS_PARQUET, H3_HOTSPOT_SIG_PARQUET,
     POLICE_STATIONS_GEOJSON, PATROL_ROUTES_GEOJSON,
     GEMINI_API_KEY, NVIDIA_API_KEY,
+    AUTH_COOKIE_NAME, USERS_FILE,
+)
+from src.auth import (
+    User, authenticate, create_token, get_current_user,
+    require_admin, station_scope, load_users,
 )
 
 TOMTOM_API_KEY = os.environ.get("TOMTOM_API_KEY", "")
@@ -64,8 +69,61 @@ def _load(key, path, loader="parquet"):
 def _violations():
     return _load("violations", PCIS_SCORED_PARQUET)
 
+
+def _priorities_raw():
+    return _load("priorities", ENFORCEMENT_PRIORITIES_PARQUET)
+
+
+def _scoped_violations(user: User):
+    df = _violations()
+    if df is None:
+        return None
+    sn = station_scope(user)
+    if sn:
+        return df[df["police_station"] == sn]
+    return df
+
+
+def _scoped_priorities(user: User):
+    df = _priorities_raw()
+    if df is None:
+        return None
+    sn = station_scope(user)
+    if sn:
+        return df[df["police_station"] == sn]
+    return df
+
+
+def _resolve_station_filter(user: User, station: Optional[str]) -> Optional[str]:
+    if user.role == "station":
+        if station and station.lower() != user.station_name.lower():
+            raise HTTPException(403, "Access denied to other stations")
+        return user.station_name
+    return station
+
+
+@app.on_event("startup")
+async def ensure_user_store():
+    if not USERS_FILE.exists():
+        logger.warning("users.json missing — seeding demo accounts...")
+        try:
+            from src.seed_users import seed
+            seed()
+        except Exception as e:
+            logger.error(f"Could not seed users: {e}")
+
+
 # ── Static file serving ──────────────────────────────────────────
 DASHBOARD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.get("/login")
+async def serve_login():
+    login = DASHBOARD_DIR / "login.html"
+    if login.exists():
+        return FileResponse(login)
+    raise HTTPException(404, "Login page not found")
+
 
 @app.get("/")
 async def serve_dashboard():
@@ -74,34 +132,90 @@ async def serve_dashboard():
         return FileResponse(index)
     return {"message": "Dashboard not found"}
 
+
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
 
 
+# ── Auth endpoints (public) ──────────────────────────────────────
+
+@app.get("/api/auth/stations")
+async def list_login_stations():
+    try:
+        data = load_users()
+        return {"stations": data.get("stations", [])}
+    except FileNotFoundError:
+        raise HTTPException(503, "User store not initialized. Run: python -m src.seed_users")
+
+
+@app.post("/api/auth/login")
+async def login(payload: dict, response: Response):
+    login_type = payload.get("type", "admin")
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+    station = (payload.get("station") or "").strip()
+    user = authenticate(login_type, username, password, station)
+    token = create_token(user)
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=86400,
+    )
+    return {
+        "ok": True,
+        "role": user.role,
+        "station_name": user.station_name,
+        "display_name": user.display_name,
+    }
+
+
+@app.post("/api/auth/logout")
+async def logout(response: Response):
+    response.delete_cookie(AUTH_COOKIE_NAME)
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+async def auth_me(user: User = Depends(get_current_user)):
+    return {
+        "username": user.username,
+        "role": user.role,
+        "station_name": user.station_name,
+        "display_name": user.display_name,
+    }
+
+
 @app.get("/api/config")
-async def get_config():
-    """Return public config (API keys needed by frontend)."""
+async def get_config(user: User = Depends(get_current_user)):
+    """Return config for authenticated dashboard clients."""
     return {
         "tomtom_api_key": TOMTOM_API_KEY,
         "has_tomtom": bool(TOMTOM_API_KEY),
         "has_gemini": bool(GEMINI_API_KEY),
+        "role": user.role,
+        "station_name": user.station_name,
+        "display_name": user.display_name,
     }
 
 
-# ── Gemini agent (lazy init, cached for the process lifetime) ────
+# ── LLM agent (lazy init, per-user chat history) ─────────────────
 _agent_model = None
-_agent_chat = None
+_agent_chats = {}
 
-def _get_agent():
-    """Return (agent, history) — initialize once, reuse across requests."""
-    global _agent_model, _agent_chat
+
+def _get_agent(user: User):
+    global _agent_model
     if _agent_model is None:
         from src.llm_agent import create_agent
         backend = "NVIDIA NIM" if NVIDIA_API_KEY else "Gemini"
         logger.info(f"Initializing {backend} agent...")
         _agent_model = create_agent()
-        _agent_chat = []   # conversation history list for NVIDIA NIM
         logger.info(f"{backend} agent ready.")
-    return _agent_model, _agent_chat
+    chat_key = user.username
+    if chat_key not in _agent_chats:
+        _agent_chats[chat_key] = []
+    return _agent_model, _agent_chats[chat_key]
 
 # ================================================================
 # EXISTING ENDPOINTS
@@ -109,6 +223,7 @@ def _get_agent():
 
 @app.get("/api/hotspots")
 async def get_hotspots(
+    user: User = Depends(get_current_user),
     n: int = Query(50, ge=1, le=500),
     station: Optional[str] = None,
     min_pcis: float = Query(0.0, ge=0, le=1),
@@ -119,12 +234,13 @@ async def get_hotspots(
     vehicle_type: Optional[str] = None,
 ):
     """Get top hotspots with optional filters for day, hour, vehicle type."""
-    df = _load("priorities", ENFORCEMENT_PRIORITIES_PARQUET)
-    vdf = _violations()
+    df = _scoped_priorities(user)
+    vdf = _scoped_violations(user)
     if df is None:
         raise HTTPException(404, "Data not loaded")
 
     data = df.copy()
+    station = _resolve_station_filter(user, station)
 
     if (day or hour_start is not None or vehicle_type) and vdf is not None:
         vfilt = vdf.copy()
@@ -157,8 +273,8 @@ async def get_hotspots(
 
 
 @app.get("/api/pcis/{h3_index}")
-async def get_pcis_detail(h3_index: str):
-    df = _load("priorities", ENFORCEMENT_PRIORITIES_PARQUET)
+async def get_pcis_detail(h3_index: str, user: User = Depends(get_current_user)):
+    df = _scoped_priorities(user)
     if df is None:
         raise HTTPException(404, "Data not loaded")
     row = df[df["h3_index"] == h3_index]
@@ -168,8 +284,8 @@ async def get_pcis_detail(h3_index: str):
 
 
 @app.get("/api/heatmap")
-async def get_heatmap():
-    df = _load("priorities", ENFORCEMENT_PRIORITIES_PARQUET)
+async def get_heatmap(user: User = Depends(get_current_user)):
+    df = _scoped_priorities(user)
     if df is None:
         raise HTTPException(404, "Data not loaded")
     cols = ["h3_index","pcis_mean","chr_normalized","violation_count",
@@ -179,29 +295,39 @@ async def get_heatmap():
 
 
 @app.get("/api/patrol-routes")
-async def get_patrol_routes(shift: Optional[str] = None):
+async def get_patrol_routes(shift: Optional[str] = None, user: User = Depends(get_current_user)):
     gdf = _load("routes", PATROL_ROUTES_GEOJSON, loader="geojson")
     if gdf is None:
         raise HTTPException(404, "Routes not found")
     if shift:
         gdf = gdf[gdf["shift"] == shift.lower()]
+    sn = station_scope(user)
+    if sn and "depot_station" in gdf.columns:
+        gdf = gdf[gdf["depot_station"] == sn]
     return json.loads(gdf.to_json())
 
 
 @app.get("/api/stations")
-async def get_stations():
+async def get_stations(user: User = Depends(get_current_user)):
     gdf = _load("stations", POLICE_STATIONS_GEOJSON, loader="geojson")
     if gdf is None:
         raise HTTPException(404, "Stations not found")
+    sn = station_scope(user)
+    if sn:
+        col = "police_station" if "police_station" in gdf.columns else gdf.columns[0]
+        gdf = gdf[gdf[col] == sn]
     return json.loads(gdf.to_json())
 
 
 @app.get("/api/temporal/{area}")
-async def get_temporal(area: str):
-    df = _violations()
+async def get_temporal(area: str, user: User = Depends(get_current_user)):
+    df = _scoped_violations(user)
     if df is None:
         raise HTTPException(404, "Data not loaded")
-    if area.lower() != "city":
+    sn = station_scope(user)
+    if sn:
+        area = sn
+    elif area.lower() != "city":
         df = df[df["police_station"].str.contains(area, case=False, na=False)]
     if len(df) == 0:
         raise HTTPException(404, f"No data for {area}")
@@ -220,10 +346,16 @@ async def get_temporal(area: str):
 
 
 @app.get("/api/predict")
-async def get_predictions():
+async def get_predictions(user: User = Depends(get_current_user)):
     df = _load("predictions", PREDICTED_VIOLATIONS_PARQUET)
     if df is None:
         raise HTTPException(404, "Predictions not found")
+    sn = station_scope(user)
+    if sn:
+        pri = _scoped_priorities(user)
+        if pri is not None:
+            hexes = set(pri["h3_index"].unique())
+            df = df[df["h3_index"].isin(hexes)]
     daily = df.groupby(["pred_date","pred_dow_name"]).agg(
         total=("predicted_violations","sum"),
         max_hex=("predicted_violations","max"),
@@ -236,10 +368,11 @@ async def get_predictions():
 
 
 @app.get("/api/summary")
-async def get_summary():
-    pri = _load("priorities", ENFORCEMENT_PRIORITIES_PARQUET)
+async def get_summary(user: User = Depends(get_current_user)):
+    pri = _scoped_priorities(user)
     if pri is None:
         raise HTTPException(404, "Data not loaded")
+    pri = pri.sort_values("priority_rank" if "priority_rank" in pri.columns else "chr", ascending=True)
     tiers = pri["priority_tier"].value_counts().to_dict()
     return {
         "total_hexagons": len(pri),
@@ -247,8 +380,10 @@ async def get_summary():
         "total_chr": round(float(pri["chr"].sum()), 0),
         "avg_pcis": round(float(pri["pcis_mean"].mean()), 3),
         "tiers": tiers,
-        "top_station": pri.iloc[0]["police_station"],
-        "top_chr": round(float(pri.iloc[0]["chr"]), 0),
+        "top_station": pri.iloc[0]["police_station"] if len(pri) else None,
+        "top_chr": round(float(pri.iloc[0]["chr"]), 0) if len(pri) else 0,
+        "station_name": user.station_name,
+        "role": user.role,
     }
 
 
@@ -257,9 +392,9 @@ async def get_summary():
 # ================================================================
 
 @app.get("/api/filter-options")
-async def get_filter_options():
+async def get_filter_options(user: User = Depends(get_current_user)):
     """F3: Dropdown options for map filters."""
-    df = _violations()
+    df = _scoped_violations(user)
     if df is None:
         raise HTTPException(404, "Data not loaded")
     stations = sorted(df["police_station"].dropna().unique().tolist())
@@ -280,7 +415,7 @@ async def get_filter_options():
 
 
 @app.post("/api/planner")
-async def run_planner(payload: dict):
+async def run_planner(payload: dict, user: User = Depends(get_current_user)):
     """F2: Enforcement Planner — K-Means cluster hotspots, greedy route per officer."""
     from sklearn.cluster import KMeans
 
@@ -289,7 +424,7 @@ async def run_planner(payload: dict):
     end_h = int(payload.get("end_hour", 12))
     n_officers = max(1, min(5, int(payload.get("n_officers", 3))))
 
-    df = _violations()
+    df = _scoped_violations(user)
     if df is None:
         raise HTTPException(404, "Data not loaded")
 
@@ -411,7 +546,7 @@ async def run_planner(payload: dict):
 
 
 @app.get("/api/station-comparison")
-async def get_station_comparison():
+async def get_station_comparison(user: User = Depends(require_admin)):
     """F4: 6-metric scorecard for all 54 police stations."""
     df = _violations()
     if df is None:
@@ -470,9 +605,9 @@ async def get_station_comparison():
 
 
 @app.get("/api/temporal-matrix")
-async def get_temporal_matrix():
+async def get_temporal_matrix(user: User = Depends(get_current_user)):
     """F5: 7-day x 24-hour violation count matrix."""
-    df = _violations()
+    df = _scoped_violations(user)
     if df is None:
         raise HTTPException(404, "Data not loaded")
 
@@ -498,7 +633,7 @@ async def get_temporal_matrix():
 
 
 @app.get("/api/gap-analysis")
-async def get_gap_analysis():
+async def get_gap_analysis(user: User = Depends(require_admin)):
     """F6: 3-method gap detection per station."""
     df = _violations()
     if df is None:
@@ -549,11 +684,13 @@ async def get_gap_analysis():
 
 
 @app.get("/api/vehicle-profiles")
-async def get_vehicle_profiles(station: Optional[str] = None):
+async def get_vehicle_profiles(station: Optional[str] = None, user: User = Depends(get_current_user)):
     """F7: Vehicle type breakdown per station."""
-    df = _violations()
+    df = _scoped_violations(user)
     if df is None:
         raise HTTPException(404, "Data not loaded")
+
+    station = _resolve_station_filter(user, station)
 
     notes = {
         "SCOOTER": "Scooter-heavy -> focus on footpaths, narrow lanes, and two-wheeler parking bays.",
@@ -565,15 +702,16 @@ async def get_vehicle_profiles(station: Optional[str] = None):
         "PRIVATE BUS": "Bus heavy -> focus on bus stops, school zones, road width violations.",
     }
 
-    if station and station.lower() != "all":
-        sdf = df[df["police_station"].str.contains(station, case=False, na=False)]
+    if user.role == "station" or (station and station.lower() != "all"):
+        target = user.station_name if user.role == "station" else station
+        sdf = df[df["police_station"].str.contains(target, case=False, na=False)]
         if len(sdf) == 0:
-            raise HTTPException(404, f"Station not found: {station}")
+            raise HTTPException(404, f"Station not found: {target}")
         vc = sdf["vehicle_type"].value_counts().head(8)
         total = len(sdf)
         dominant = vc.index[0] if len(vc) > 0 else "UNKNOWN"
         return {
-            "station": station,
+            "station": target,
             "total": total,
             "distribution": [
                 {"type": t, "count": int(c), "pct": round(c/total*100, 1)}
@@ -600,7 +738,7 @@ async def get_vehicle_profiles(station: Optional[str] = None):
 
 
 @app.get("/api/weekend-split")
-async def get_weekend_split():
+async def get_weekend_split(user: User = Depends(require_admin)):
     """F8: Weekday vs weekend split per station."""
     df = _violations()
     if df is None:
@@ -636,7 +774,7 @@ async def get_weekend_split():
 
 
 @app.post("/api/chat")
-async def chat_endpoint(payload: dict):
+async def chat_endpoint(payload: dict, user: User = Depends(get_current_user)):
     """LLM chat proxy — NVIDIA NIM primary, Gemini fallback."""
     query = payload.get("query", "")
     if not query.strip():
@@ -645,8 +783,8 @@ async def chat_endpoint(payload: dict):
         return {"response": "**Configuration Error**: No AI API key set. Add NVIDIA_API_KEY to your .env file."}
     try:
         from src.llm_agent import handle_query
-        agent, history = _get_agent()
-        response = handle_query(agent, history, query)
+        agent, history = _get_agent(user)
+        response = handle_query(agent, history, query, station=user.station_name)
         return {"response": response}
     except Exception as e:
         err = str(e)
@@ -659,29 +797,43 @@ async def chat_endpoint(payload: dict):
 
 
 @app.post("/api/chat/reset")
-async def reset_chat():
+async def reset_chat(user: User = Depends(get_current_user)):
     """Reset the chat history (start a fresh conversation)."""
-    global _agent_chat
-    _agent_chat = []   # clear NVIDIA history list
+    _agent_chats[user.username] = []
     return {"status": "Chat history cleared"}
 
 
 @app.get("/api/ripple-contours")
-async def get_ripple_contours():
+async def get_ripple_contours(user: User = Depends(get_current_user)):
     path = OUTPUT_DIR / "ripple_contours.geojson"
     if not path.exists():
         raise HTTPException(404, "Not found")
     with open(path) as f:
-        return json.load(f)
+        data = json.load(f)
+    sn = station_scope(user)
+    if sn:
+        pri = _scoped_priorities(user)
+        if pri is not None:
+            hexes = set(pri["h3_index"].unique())
+            features = [f for f in data.get("features", [])
+                        if f.get("properties", {}).get("h3_index") in hexes]
+            data = {"type": "FeatureCollection", "features": features}
+    return data
 
 
 @app.get("/api/cluster-profiles")
-async def get_cluster_profiles():
+async def get_cluster_profiles(user: User = Depends(get_current_user)):
     path = OUTPUT_DIR / "cluster_profiles.geojson"
     if not path.exists():
         raise HTTPException(404, "Not found")
     with open(path) as f:
-        return json.load(f)
+        data = json.load(f)
+    sn = station_scope(user)
+    if sn:
+        features = [f for f in data.get("features", [])
+                    if sn.lower() in str(f.get("properties", {})).lower()]
+        data = {"type": "FeatureCollection", "features": features}
+    return data
 
 
 if __name__ == "__main__":

@@ -15,13 +15,14 @@ A full-stack data science project that processes 207,781 real-world parking viol
 5. [Prerequisites](#5-prerequisites)
 6. [Installation Steps](#6-installation-steps)
 7. [Environment Variables (API Keys)](#7-environment-variables-api-keys)
-8. [Running the Dashboard](#8-running-the-dashboard)
-9. [Running the Full Data Pipeline](#9-running-the-full-data-pipeline)
-10. [Dashboard Pages](#10-dashboard-pages)
-11. [API Reference](#11-api-reference)
-12. [Data Science Methodology](#12-data-science-methodology)
-13. [Project File Structure](#13-project-file-structure)
-14. [Troubleshooting](#14-troubleshooting)
+8. [Authentication & Login](#8-authentication--login)
+9. [Running the Dashboard](#9-running-the-dashboard)
+10. [Running the Full Data Pipeline](#10-running-the-full-data-pipeline)
+11. [Dashboard Pages](#11-dashboard-pages)
+12. [API Reference](#12-api-reference)
+13. [Data Science Methodology](#13-data-science-methodology)
+14. [Project File Structure](#14-project-file-structure)
+15. [Troubleshooting](#15-troubleshooting)
 
 ---
 
@@ -36,6 +37,7 @@ PARKVISION AI converts raw parking challan data into actionable enforcement inte
 - Predicts next-week violations using **XGBoost**
 - Provides an **AI chat assistant** powered by NVIDIA NIM (LLaMA-3.3-70B) with full data context
 - Serves everything via a dark-mode **interactive dashboard** built on Leaflet + Chart.js
+- Protects access with **role-based authentication** — city-wide admin view and station-scoped dashboards for all 54 traffic police stations
 
 ---
 
@@ -54,6 +56,22 @@ PARKVISION AI converts raw parking challan data into actionable enforcement inte
 | **Vehicle Profiles** | Per-station vehicle type breakdown (pie chart + table) with enforcement note (e.g., "scooter-heavy → check footpaths"). |
 | **Weekday vs Weekend** | Scatter plot and table showing observed weekday/weekend split per station. Highlights stations with unusual weekend enforcement patterns. |
 | **AI Chat** | Natural language Q&A powered by NVIDIA NIM (LLaMA-3.3-70B). Answers questions about hotspots, PCIS scores, CHR, temporal patterns, predictions, and enforcement recommendations using live data context. |
+
+### Authentication & Roles
+
+| Role | Access |
+|------|--------|
+| **Admin (City Command)** | Full dashboard — all 54 stations, all 9 pages, city-wide data |
+| **Station Officer** | Curated station view — own hexagons, own marker, map, hotspots, planner, temporal patterns, vehicle profile, patrol routes, and AI chat scoped to that station |
+
+Login is required for all dashboard and API access. Unauthenticated users are redirected to the login page.
+
+**Demo credentials** (after running `python -m src.seed_users`):
+
+| Role | Login | Password |
+|------|-------|----------|
+| Admin | `admin` | `admin123` |
+| Any station | select station from dropdown | `station123` (shared) |
 
 ### Core Algorithms
 
@@ -93,13 +111,15 @@ PARKVISION AI converts raw parking challan data into actionable enforcement inte
 ┌─────────────────────────────────────────────────────────┐
 │                    FASTAPI BACKEND                       │
 │  src/api_server.py    (port 8000)                       │
-│  20+ REST endpoints serving live data                   │
+│  src/auth.py          ← JWT auth + role scoping           │
+│  20+ REST endpoints (protected)                         │
 └───────────────┬─────────────────────────────────────────┘
-                │  JSON / GeoJSON
+                │  JSON / GeoJSON (authenticated)
                 ▼
 ┌─────────────────────────────────────────────────────────┐
 │                  WEB DASHBOARD                          │
-│  dashboard/index.html                                   │
+│  dashboard/login.html   ← Admin / Station login         │
+│  dashboard/index.html   ← Main app (role-based nav)     │
 │  Leaflet 1.9.4 + Chart.js 4.4 + H3-js 4.1             │
 │  9 interactive pages, dark theme                        │
 └─────────────────────────────────────────────────────────┘
@@ -172,14 +192,21 @@ python -m src.run_pipeline
 # ...
 # Pipeline complete. All data files written to data/ and output/
 
-# ── Step 7: Start the dashboard server ────────────────────────────
+# ── Step 7: Seed demo user accounts ─────────────────────────────
+python -m src.seed_users
+
+# ── Step 8: Start the dashboard server ────────────────────────────
+# Windows (recommended): double-click run_server.bat
+# Or manually:
 python -m uvicorn src.api_server:app --host 0.0.0.0 --port 8000
 
-# ── Step 8: Open the dashboard ────────────────────────────────────
-# Visit http://localhost:8000 in your browser
+# ── Step 9: Open the login page ───────────────────────────────────
+# Visit http://localhost:8000/login
 ```
 
-> **The pipeline is a one-time step.** Once `data/`, `output/`, and `models/` are populated, you only need Step 7 (start the server) on every subsequent run.
+> **The pipeline is a one-time step.** Once `data/`, `output/`, and `models/` are populated, you only need to seed users (first time) and start the server on every subsequent run.
+
+> **Always use the project virtual environment.** On Windows, run `venv\Scripts\activate` before any `python` command, or use `run_server.bat`.
 
 ---
 
@@ -306,15 +333,71 @@ TOMTOM_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Google Gemini — Fallback AI backend (optional)
 # Get your free key at: https://aistudio.google.com
 GEMINI_API_KEY=AIzaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Authentication (demo defaults — change in production)
+AUTH_SECRET=change-me-to-a-long-random-string
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+STATION_PASSWORD=station123
+SESSION_EXPIRE_HOURS=24
 ```
 
-> **Security**: The `.env` file is listed in `.gitignore` and will never be committed to Git. Never share your API keys publicly.
+> **Security**: The `.env` file is listed in `.gitignore` and will never be committed to Git. Never share your API keys publicly. `data/users.json` is also gitignored — run `python -m src.seed_users` after cloning.
 
 ---
 
-## 8. Running the Dashboard
+## 8. Authentication & Login
+
+### Setup (first time)
+
+After the data pipeline has run at least once:
+
+```bash
+python -m src.seed_users
+```
+
+This creates `data/users.json` with one admin account and all 54 station names. Station accounts share one demo password (`STATION_PASSWORD` in `.env`).
+
+The server auto-seeds on startup if `data/users.json` is missing and pipeline data exists.
+
+### Login page
+
+Open **http://localhost:8000/login**
+
+- **Admin tab** — username + password → full city dashboard
+- **Station tab** — select station + shared password → station-scoped dashboard
+
+### What each role sees
+
+| Page | Admin | Station |
+|------|:-----:|:-------:|
+| Violation Map | All hexes | Own hexes + marker only |
+| Filter Hotspots | All stations | Own jurisdiction |
+| Enforcement Planner | City-wide | Own jurisdiction |
+| Temporal Patterns | City / station | Own station |
+| Vehicle Profiles | All stations | Own station |
+| AI Chat | City context | Station context |
+| Station Comparison | Yes | Hidden |
+| Gap Analysis | Yes | Hidden |
+| Weekday vs Weekend | Yes | Hidden |
+
+### Sign out
+
+Use **Sign Out** in the sidebar, or call `POST /api/auth/logout`.
+
+---
+
+## 9. Running the Dashboard
 
 ### Start the server
+
+**Windows (easiest):**
+
+```powershell
+run_server.bat
+```
+
+**Manual (any OS):**
 
 ```bash
 # Make sure your venv is active first
@@ -331,7 +414,9 @@ INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 
 ### Open the dashboard
 
-Open your browser and visit: **http://localhost:8000**
+1. Go to **http://localhost:8000/login**
+2. Sign in as Admin or Station
+3. You are redirected to the main dashboard at **http://localhost:8000**
 
 ### Navigate the dashboard
 
@@ -355,7 +440,7 @@ Press `Ctrl + C` in the terminal.
 
 ---
 
-## 9. Running the Full Data Pipeline
+## 10. Running the Full Data Pipeline
 
 > **Only needed if you are starting from the raw CSV file** (e.g., replacing the data with new violation records).
 > If `data/` and `output/` are already populated, skip this section.
@@ -424,7 +509,7 @@ The filename must match exactly as specified in `config/settings.py`.
 
 ---
 
-## 10. Dashboard Pages
+## 11. Dashboard Pages
 
 ### Violation Map (`[M]`)
 
@@ -509,15 +594,25 @@ The main map page with full-screen Leaflet view.
 
 ---
 
-## 11. API Reference
+## 12. API Reference
 
-The FastAPI backend runs on `http://localhost:8000`. All endpoints return JSON.
+The FastAPI backend runs on `http://localhost:8000`. All data endpoints require authentication (JWT cookie set at login).
 
-### Core Endpoints
+### Auth Endpoints (public)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/` | Serves the dashboard HTML |
+| GET | `/login` | Login page |
+| GET | `/api/auth/stations` | Station names for login dropdown |
+| POST | `/api/auth/login` | Sign in — sets HttpOnly session cookie |
+| POST | `/api/auth/logout` | Clear session |
+| GET | `/api/auth/me` | Current user role and station |
+
+### Core Endpoints (authenticated)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Serves the dashboard HTML (requires login for data) |
 | GET | `/api/config` | Returns API key availability flags |
 | GET | `/api/summary` | City-wide stats (total violations, CHR, tiers, avg PCIS) |
 | GET | `/api/hotspots` | Top hotspots with full filter support |
@@ -584,7 +679,7 @@ curl -X POST http://localhost:8000/api/planner \
 
 ---
 
-## 12. Data Science Methodology
+## 13. Data Science Methodology
 
 ### PCIS (Parking Congestion Impact Score)
 
@@ -638,23 +733,25 @@ XGBoost regressor with features:
 
 ---
 
-## 13. Project File Structure
+## 14. Project File Structure
 
 ```
 PARKVISION-AI/
-├── .env                          # API keys (never committed)
+├── .env                          # API keys + auth secrets (never committed)
 ├── .env.example                  # Template for .env
 ├── .gitignore
 ├── requirements.txt              # All dependencies with pinned versions
 ├── README.md
-├── PROJECT_FEATURES.md           # Feature specification
+├── run_server.bat                # Windows helper — starts server with venv
 │
 ├── config/
-│   └── settings.py               # All constants, paths, PCIS weights
+│   └── settings.py               # All constants, paths, PCIS weights, auth
 │
 ├── src/
 │   ├── __init__.py
 │   ├── run_pipeline.py           # Master pipeline runner (runs all stages)
+│   ├── auth.py                   # JWT authentication + role helpers
+│   ├── seed_users.py             # Creates data/users.json for demo login
 │   ├── data_ingestion.py         # Stage 1: CSV cleaning and validation
 │   ├── road_network.py           # Stage 2: OSMnx road graph download
 │   ├── spatial_indexing.py       # Stage 3: H3 hex binning, hex stats
@@ -665,13 +762,15 @@ PARKVISION-AI/
 │   ├── enforcement_optimizer.py  # Stage 8: K-Means + priority ranking
 │   ├── patrol_router.py          # Stage 9: Shift-based patrol routes
 │   ├── prediction.py             # Stage 10: XGBoost predictions
-│   ├── api_server.py             # FastAPI backend (20+ endpoints)
+│   ├── api_server.py             # FastAPI backend (auth + 20+ endpoints)
 │   └── llm_agent.py              # NVIDIA NIM AI agent
 │
 ├── dashboard/
+│   ├── login.html                # Admin / Station login page
 │   └── index.html                # Single-page dashboard (Leaflet + Chart.js)
 │
 ├── data/                         # Processed parquet files (auto-generated)
+│   ├── users.json                # Demo accounts (gitignored — run seed_users)
 │   ├── pcis_scored_violations.parquet
 │   ├── enforcement_priorities.parquet
 │   ├── predicted_violations.parquet
@@ -692,7 +791,45 @@ PARKVISION-AI/
 
 ---
 
-## 14. Troubleshooting
+## 15. Troubleshooting
+
+### Wrong Python / `ModuleNotFoundError` / `pydantic` errors
+
+Do **not** use the system `python` if it points to another project's venv. Always use this project's venv:
+
+```powershell
+cd PARKVISION-AI
+python -m venv venv          # first time only
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Verify:
+
+```powershell
+venv\Scripts\python.exe -c "import fastapi, pydantic, jwt; print('OK')"
+```
+
+### Login page shows "Internal Server Error" or stations won't load
+
+Usually a **stale server** is still running on port 8000 with old code:
+
+```powershell
+netstat -ano | findstr :8000
+taskkill /PID <pid_number> /F
+venv\Scripts\activate
+python -m uvicorn src.api_server:app --host 0.0.0.0 --port 8000
+```
+
+Then open **http://localhost:8000/login** (hard refresh with `Ctrl+Shift+R`).
+
+### `data/users.json` not found
+
+```bash
+python -m src.seed_users
+```
+
+Requires pipeline data (at least `data/police_stations.geojson` or `data/pcis_scored_violations.parquet`).
 
 ### `geopandas` or `pyogrio` install fails on Windows
 
