@@ -187,7 +187,8 @@ def compute_chr_metric(df: pd.DataFrame, hex_stats: pd.DataFrame) -> pd.DataFram
     ).reset_index()
 
     # Daily violation frequency
-    hex_chr["daily_frequency"] = hex_chr["violation_count"] / hex_chr["unique_days"].clip(lower=1)
+    total_days = max(df["date"].nunique(), 1)
+    hex_chr["daily_frequency"] = hex_chr["violation_count"] / total_days
 
     # Estimated average violation duration (hours)
     # Based on severity: higher severity = longer parked illegally

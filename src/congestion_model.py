@@ -54,7 +54,7 @@ SPEED_DEGRADATION = {50: 0.80, 150: 0.50, 300: 0.25, 500: 0.10}  # fraction of s
 # ============================================
 # STEP 1: Shockwave propagation model
 # ============================================
-def compute_shockwave_propagation(hex_pcis: pd.DataFrame) -> gpd.GeoDataFrame:
+def compute_shockwave_propagation(hex_pcis: pd.DataFrame, total_days: int = 151) -> gpd.GeoDataFrame:
     """
     For each high-PCIS hexagon, estimate congestion ripple effect.
     
@@ -100,7 +100,7 @@ def compute_shockwave_propagation(hex_pcis: pd.DataFrame) -> gpd.GeoDataFrame:
         delay_per_vehicle_s = (cr * 60) / capacity_remaining_ratio  # simplified
 
         # Total delay impact (vehicle-hours per day)
-        daily_violations = count / max(1, row.get("unique_days", 30))
+        daily_violations = count / total_days
         total_delay_veh_hours = (delay_per_vehicle_s * excess_demand * daily_violations) / 3600
 
         # --- Create ripple contour polygons ---
@@ -449,7 +449,8 @@ def run():
     logger.info(f"  Loaded {len(df):,} violations")
 
     # Step 1: Shockwave propagation
-    ripple_gdf = compute_shockwave_propagation(hex_pcis)
+    total_days = max(df["date"].nunique(), 1)
+    ripple_gdf = compute_shockwave_propagation(hex_pcis, total_days)
 
     # Step 2: Location memory scores
     memory_df = compute_location_memory(df)

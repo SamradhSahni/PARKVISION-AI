@@ -9,7 +9,7 @@
 ## Executive Summary
 
 PARKVISION AI has analyzed **207,781 parking violations** across **2,420 H3 hexagonal zones** in Bengaluru
-and identified enforcement opportunities that could recover an estimated **5,653,990 vehicle-hours/day**
+and identified enforcement opportunities that could recover an estimated **470.0 hrs/day**
 of congestion. This brief highlights the top priorities and optimized patrol routes.
 
 ---
@@ -17,13 +17,13 @@ of congestion. This brief highlights the top priorities and optimized patrol rou
 ## PRIORITY ALERTS
 
 > [!CAUTION]
-> **1 URGENT** zone(s) require immediate deployment. Combined CHR: 178,107 veh-hrs/day.
+> **3 URGENT** zone(s) require immediate deployment. Combined CHR: 38.5 hrs/day.
 
 > [!WARNING]
-> **1 HIGH** priority zone(s) need prioritized enforcement. Combined CHR: 90,485 veh-hrs/day.
+> **5 HIGH** priority zone(s) need prioritized enforcement. Combined CHR: 42.4 hrs/day.
 
 > [!IMPORTANT]
-> **17 MEDIUM** priority zones flagged for scheduled enforcement.
+> **15 MEDIUM** priority zones flagged for scheduled enforcement.
 
 ---
 
@@ -32,25 +32,25 @@ of congestion. This brief highlights the top priorities and optimized patrol rou
 | Rank | Zone (H3) | CHR Score | PCIS | Daily Freq | Station | Peak Hour |
 |:-----|:----------|:----------|:-----|:-----------|:--------|:----------|
 | 1 | `8960145b553f...` | 100.0 | 0.604 | 59.6 | Upparpet | 09:00 |
-| 2 | `8960145b427f...` | 50.8 | 0.551 | 37.1 | Upparpet | 01:00 |
-| 3 | `8961892412ff...` | 47.2 | 0.584 | 27.0 | Hulimavu | 08:00 |
-| 4 | `8960145b59bf...` | 37.9 | 0.516 | 38.6 | City Market | 01:00 |
-| 5 | `89618920923f...` | 36.9 | 0.443 | 42.0 | HAL Old Airport | 04:00 |
-| 6 | `8961892eeb3f...` | 36.1 | 0.607 | 15.5 | Banaswadi | 07:00 |
-| 7 | `8961892e9abf...` | 35.4 | 0.594 | 27.5 | Shivajinagar | 10:00 |
-| 8 | `896189246b3f...` | 31.4 | 0.508 | 18.0 | Electronic City | 11:00 |
-| 9 | `8961892e0bbf...` | 31.2 | 0.519 | 15.0 | Mahadevapura | 01:00 |
-| 10 | `8960145b5cbf...` | 31.2 | 0.543 | 27.7 | Upparpet | 09:00 |
-| 11 | `896189242dbf...` | 29.2 | 0.676 | 7.0 | HSR Layout | 09:00 |
-| 12 | `89618925ac3f...` | 26.1 | 0.683 | 9.0 | Ashok Nagar | 13:00 |
-| 13 | `8961892e9bbf...` | 25.9 | 0.619 | 19.3 | Shivajinagar | 10:00 |
-| 14 | `89618920e47f...` | 25.1 | 0.588 | 9.0 | Whitefield | 07:00 |
-| 15 | `89618925babf...` | 22.7 | 0.736 | 10.0 | City Market | 08:00 |
-| 16 | `8961892ec8bf...` | 22.6 | 0.539 | 9.0 | Jeevanbheemanagar | 07:00 |
-| 17 | `8960144b4dbf...` | 21.9 | 0.491 | 13.0 | Chikkabanavara | 05:00 |
-| 18 | `8961892444ff...` | 20.8 | 0.433 | 14.0 | Electronic City | 04:00 |
-| 19 | `8961892e917f...` | 20.2 | 0.508 | 22.4 | Shivajinagar | 10:00 |
-| 20 | `89618925423f...` | 19.0 | 0.585 | 9.5 | Bellandur | 10:00 |
+| 2 | `8960145b427f...` | 91.8 | 0.551 | 37.1 | Upparpet | 01:00 |
+| 3 | `8961892e9abf...` | 80.3 | 0.594 | 27.1 | Shivajinagar | 10:00 |
+| 4 | `8960145b5cbf...` | 68.4 | 0.543 | 27.6 | Upparpet | 09:00 |
+| 5 | `8961892e9bbf...` | 65.2 | 0.619 | 17.5 | Shivajinagar | 10:00 |
+| 6 | `8961892e917f...` | 57.6 | 0.508 | 22.0 | Shivajinagar | 10:00 |
+| 7 | `8960145b59bf...` | 56.7 | 0.516 | 38.6 | City Market | 01:00 |
+| 8 | `89618920923f...` | 51.9 | 0.443 | 26.4 | HAL Old Airport | 04:00 |
+| 9 | `8960145b3a7f...` | 44.2 | 0.491 | 17.5 | Rajajinagar | 08:00 |
+| 10 | `89618920963f...` | 37.0 | 0.532 | 6.5 | HAL Old Airport | 08:00 |
+| 11 | `8960145b30ff...` | 35.8 | 0.491 | 12.9 | Malleshwaram | 09:00 |
+| 12 | `8961892e937f...` | 30.1 | 0.473 | 13.5 | Shivajinagar | 10:00 |
+| 13 | `8961892e2bbf...` | 29.8 | 0.420 | 16.5 | K.R. Pura | 00:00 |
+| 14 | `89601690193f...` | 27.8 | 0.380 | 11.2 | Chikkajala | 05:00 |
+| 15 | `8960145b147f...` | 27.6 | 0.454 | 4.9 | Rajajinagar | 03:00 |
+| 16 | `8960145b2a7f...` | 26.9 | 0.402 | 12.8 | Malleshwaram | 09:00 |
+| 17 | `89618925b7bf...` | 26.1 | 0.521 | 12.8 | Halasuru Gate | 10:00 |
+| 18 | `8960145b55bf...` | 24.9 | 0.426 | 11.6 | Upparpet | 01:00 |
+| 19 | `8961892e387f...` | 23.3 | 0.409 | 7.7 | Mahadevapura | 01:00 |
+| 20 | `8960145b307f...` | 23.2 | 0.452 | 10.8 | Malleshwaram | 10:00 |
 
 ---
 
@@ -82,59 +82,59 @@ of congestion. This brief highlights the top priorities and optimized patrol rou
 
 | Depot Station | Stops | CHR Recovered | Travel Time | Total Time |
 |:-------------|:------|:-------------|:------------|:-----------|
-| Upparpet | 9 | 539,248 | 1.6h | 3.8h |
-| Shivajinagar | 9 | 539,248 | 1.7h | 3.9h |
-| City Market | 9 | 539,248 | 1.7h | 3.9h |
-| Rajajinagar | 8 | 507,468 | 2.0h | 4.0h |
-| Malleshwaram | 8 | 503,359 | 2.0h | 4.0h |
+| Upparpet | 11 | 75 | 1.2h | 3.9h |
+| Malleshwaram | 11 | 75 | 1.2h | 3.9h |
+| Shivajinagar | 10 | 74 | 1.3h | 3.8h |
+| Rajajinagar | 11 | 74 | 1.2h | 4.0h |
+| City Market | 12 | 73 | 0.9h | 4.0h |
 
 ### Midday Shift (10:00 - 14:00)
 
 | Depot Station | Stops | CHR Recovered | Travel Time | Total Time |
 |:-------------|:------|:-------------|:------------|:-----------|
-| Shivajinagar | 8 | 313,863 | 2.0h | 4.0h |
-| HAL Old Airport | 7 | 300,073 | 2.2h | 3.9h |
-| City Market | 7 | 299,760 | 2.2h | 4.0h |
-| Upparpet | 7 | 295,638 | 2.2h | 4.0h |
-| Vijayanagara | 9 | 277,172 | 1.7h | 3.9h |
+| Upparpet | 12 | 50 | 0.9h | 3.9h |
+| Shivajinagar | 12 | 50 | 0.8h | 3.8h |
+| City Market | 12 | 50 | 0.8h | 3.8h |
+| Vijayanagara | 11 | 49 | 1.2h | 4.0h |
+| Malleshwaram | 11 | 48 | 1.2h | 3.9h |
 
 ### Afternoon Shift (14:00 - 17:00)
 
 | Depot Station | Stops | CHR Recovered | Travel Time | Total Time |
 |:-------------|:------|:-------------|:------------|:-----------|
-| Upparpet | 8 | 587,810 | 0.9h | 2.9h |
-| Shivajinagar | 8 | 587,810 | 1.0h | 3.0h |
-| City Market | 8 | 587,810 | 0.9h | 2.9h |
-| Malleshwaram | 7 | 541,296 | 1.2h | 3.0h |
-| Vijayanagara | 7 | 536,752 | 1.2h | 3.0h |
+| Upparpet | 9 | 82 | 0.7h | 3.0h |
+| Shivajinagar | 9 | 82 | 0.7h | 3.0h |
+| City Market | 9 | 82 | 0.7h | 3.0h |
+| Vijayanagara | 7 | 74 | 1.2h | 2.9h |
+| Rajajinagar | 7 | 72 | 1.1h | 2.8h |
 
 ### Evening Shift (17:00 - 21:00)
 
 | Depot Station | Stops | CHR Recovered | Travel Time | Total Time |
 |:-------------|:------|:-------------|:------------|:-----------|
-| Shivajinagar | 10 | 687,977 | 1.5h | 4.0h |
-| City Market | 10 | 687,711 | 1.5h | 4.0h |
-| Upparpet | 10 | 654,961 | 1.5h | 4.0h |
-| Vijayanagara | 10 | 654,961 | 1.5h | 4.0h |
-| Rajajinagar | 10 | 654,961 | 1.5h | 4.0h |
+| Rajajinagar | 11 | 92 | 1.2h | 4.0h |
+| Upparpet | 12 | 91 | 0.9h | 3.9h |
+| Shivajinagar | 12 | 91 | 0.9h | 3.9h |
+| Malleshwaram | 11 | 91 | 1.2h | 4.0h |
+| City Market | 12 | 91 | 1.0h | 4.0h |
 
 ### Night Shift (21:00 - 06:00)
 
 | Depot Station | Stops | CHR Recovered | Travel Time | Total Time |
 |:-------------|:------|:-------------|:------------|:-----------|
-| Upparpet | 20 | 1,172,870 | 3.9h | 8.9h |
-| HAL Old Airport | 20 | 1,172,870 | 4.0h | 9.0h |
-| Shivajinagar | 20 | 1,170,608 | 3.8h | 8.8h |
-| City Market | 20 | 1,170,608 | 3.5h | 8.5h |
-| Vijayanagara | 20 | 1,147,794 | 4.0h | 8.9h |
+| Shivajinagar | 23 | 137 | 3.2h | 8.9h |
+| Malleshwaram | 23 | 137 | 3.2h | 9.0h |
+| HAL Old Airport | 23 | 137 | 3.1h | 8.9h |
+| City Market | 23 | 136 | 3.2h | 9.0h |
+| Upparpet | 22 | 135 | 3.5h | 8.9h |
 
 ---
 
 ## Key Intelligence Insights
 
 ### Spatial Concentration
-- **Top 20 hexagons** (0.8% of zones) account for **21.2%** of recoverable congestion
-- **Upparpet** cluster alone represents **3.2%** of total CHR
+- **Top 20 hexagons** (0.8% of zones) account for **28.0%** of recoverable congestion
+- **Upparpet** cluster alone represents **3.0%** of total CHR
 
 ### Temporal Patterns
 - **Morning commercial** pattern dominates top stations — deploy 08:00-11:00
@@ -142,9 +142,9 @@ of congestion. This brief highlights the top priorities and optimized patrol rou
 - Weekend violation rates ~2% higher than weekdays
 
 ### Enforcement ROI
-- Deploying **8 patrol units** across optimized routes could cover the top 19 priority zones
-- Estimated congestion recovery: **1,195,946 veh-hrs/day** from top 20 zones alone
-- This equals approximately **149,493 veh-hrs/day per patrol unit**
+- Deploying **8 patrol units** across optimized routes could cover the top 23 priority zones
+- Estimated congestion recovery: **131.4 hrs/day** from top 20 zones alone
+- This equals approximately **16.4 hrs/day per patrol unit**
 
 ### Addiction Zones (Chronic Hotspots)
 - **38 hexagons** show Location Memory Score > 0.5 (active >50% of observation days)
@@ -155,7 +155,7 @@ of congestion. This brief highlights the top priorities and optimized patrol rou
 
 ## Recommended Actions
 
-1. **IMMEDIATE**: Deploy to URGENT zone (Upparpet central, CHR=177,322)
+1. **IMMEDIATE**: Deploy to URGENT zone (top priority area, CHR=14.2 hrs/day)
 2. **TODAY**: Execute morning shift routes from Upparpet, Shivajinagar, City Market depots
 3. **THIS WEEK**: Install signage at top 10 addiction zones
 4. **THIS MONTH**: Coordinate with BBMP for infrastructure interventions at persistent hotspots
