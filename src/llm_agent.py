@@ -238,7 +238,16 @@ _CITY_WIDE_KEYWORDS = [
     "compare station", "compare all", "top station", "top stations",
     "worst station", "best station", "all jurisdiction", "all jurisdictions",
     "stationwise", "station wise", "other station",
+    "in bengaluru", "in bangalore", "in blr",
+    "of bengaluru", "of bangalore",
+    "bengaluru hotspot", "bangalore hotspot",
+    "bengaluru violation", "bangalore violation",
+    "bengaluru traffic", "bangalore traffic",
 ]
+
+# City name tokens — if these appear WITHOUT the user's station name,
+# treat the query as city-wide
+_CITY_NAME_TOKENS = ["bengaluru", "bangalore", "blr", "namma bengaluru"]
 
 def _is_city_wide_query(query: str, user_station: str) -> bool:
     """
@@ -246,27 +255,34 @@ def _is_city_wide_query(query: str, user_station: str) -> bool:
     city-wide data, other stations, or cross-station comparisons.
     """
     q = query.lower().strip()
+    my_station_lower = (user_station or "").lower()
 
-    # Check generic city-wide keywords
+    # Check generic city-wide keyword phrases
     for kw in _CITY_WIDE_KEYWORDS:
         if kw in q:
             return True
 
-    # Check if they mention another station by name
-    # (we detect this in the api_server by injecting station context;
-    #  here we look for "station" combined with a name that isn't theirs)
-    if "station" in q and user_station:
-        my_station_lower = user_station.lower()
-        # If the query references a station name other than their own
-        # (simple heuristic: 'station' appears but their own name doesn't)
-        if "station" in q and my_station_lower not in q:
-            # Narrow check: only flag if it sounds like a comparison/inquiry
-            compare_words = ["which", "what", "where", "highest", "lowest",
-                             "best", "worst", "top", "most", "least", "compare"]
-            if any(cw in q for cw in compare_words):
-                return True
+    # Check if the query references a city name without the user's own station name.
+    # e.g. "hotspots in Bengaluru"  → bengaluru present, "adugodi" not present → BLOCK
+    # e.g. "hotspots in Adugodi, Bengaluru" → both present → ALLOW (station context)
+    for city_token in _CITY_NAME_TOKENS:
+        if city_token in q:
+            if my_station_lower and my_station_lower in q:
+                continue  # they mentioned their own station alongside the city — allow
+            return True   # bare city reference without their station → block
+
+    # Check if they reference "station" in a comparative/inquiry context
+    # without mentioning their own station name
+    if "station" in q and my_station_lower and my_station_lower not in q:
+        compare_words = ["which", "what", "where", "highest", "lowest",
+                         "best", "worst", "top", "most", "least", "compare",
+                         "list", "show", "all", "give"]
+        if any(cw in q for cw in compare_words):
+            return True
 
     return False
+
+
 
 
 # ============================================
