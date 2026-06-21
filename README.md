@@ -35,7 +35,7 @@ PARKVISION AI converts raw parking challan data into actionable enforcement inte
 - Clusters violation hotspots using **ST-DBSCAN** at micro/meso/macro scales validated by **Getis-Ord Gi\***
 - Generates **optimized patrol routes** for 5 daily shifts using K-Means + greedy nearest-neighbor routing
 - Predicts next-week violations using **XGBoost**
-- Provides an **AI chat assistant** powered by NVIDIA NIM (LLaMA-3.3-70B) with full data context
+- Provides an **AI chat assistant** powered by DeepSeek (DeepSeek-V3) with full data context
 - Serves everything via a dark-mode **interactive dashboard** built on Leaflet + Chart.js
 - Protects access with **role-based authentication** — city-wide admin view and station-scoped dashboards for all 54 traffic police stations
 
@@ -55,7 +55,7 @@ PARKVISION AI converts raw parking challan data into actionable enforcement inte
 | **Gap Analysis** | 3-method indirect detection of potentially under-recorded areas using vehicle diversity, time coverage gaps, and junction density ratios. |
 | **Vehicle Profiles** | Per-station vehicle type breakdown (pie chart + table) with enforcement note (e.g., "scooter-heavy → check footpaths"). |
 | **Weekday vs Weekend** | Scatter plot and table showing observed weekday/weekend split per station. Highlights stations with unusual weekend enforcement patterns. |
-| **AI Chat** | Natural language Q&A powered by NVIDIA NIM (LLaMA-3.3-70B). Answers questions about hotspots, PCIS scores, CHR, temporal patterns, predictions, and enforcement recommendations using live data context. |
+| **AI Chat** | Natural language Q&A powered by DeepSeek (DeepSeek-V3). Answers questions about hotspots, PCIS scores, CHR, temporal patterns, predictions, and enforcement recommendations using live data context. |
 
 ### Authentication & Roles
 
@@ -84,7 +84,7 @@ Login is required for all dashboard and API access. Unauthenticated users are re
 | Enforcement ROI | CHR (Congestion Hours Recovered) in vehicle-hours/day |
 | Patrol routing | K-Means clustering → greedy nearest-neighbor |
 | Prediction | XGBoost regressor, day × hour features |
-| AI assistant | NVIDIA NIM — meta/llama-3.3-70b-instruct via OpenAI-compatible API |
+| AI assistant | DeepSeek — meta/llama-3.3-70b-instruct via OpenAI-compatible API |
 
 ---
 
@@ -104,7 +104,7 @@ Login is required for all dashboard and API access. Unauthenticated users are re
 │  src/enforcement_optimizer.py ← K-Means + routing       │
 │  src/patrol_router.py       ← Shift-based patrol routes │
 │  src/prediction.py          ← XGBoost predictions       │
-│  src/llm_agent.py           ← NVIDIA NIM AI agent       │
+│  src/llm_agent.py           ← DeepSeek AI agent       │
 └───────────────┬─────────────────────────────────────────┘
                 │  Parquet files (data/), GeoJSON (output/)
                 ▼
@@ -136,7 +136,7 @@ Login is required for all dashboard and API access. Unauthenticated users are re
 | Item | How to get it |
 |------|--------------|
 | Raw violation CSV file | Obtain from the project owner or dataset source |
-| NVIDIA NIM API key | [build.nvidia.com](https://build.nvidia.com) — free account |
+| DeepSeek API key | [build.nvidia.com](https://build.nvidia.com) — free account |
 | Python 3.10–3.12 | [python.org/downloads](https://www.python.org/downloads/) |
 
 ---
@@ -169,7 +169,7 @@ copy .env.example .env
 # cp .env.example .env
 
 # Now open .env in any text editor and add your API keys:
-#   NVIDIA_API_KEY=nvapi-your-key-here
+#   DEEPSEEK_API_KEY=sk-your-key-here
 #   TOMTOM_API_KEY=your-tomtom-key-here   (optional)
 ```
 
@@ -227,11 +227,11 @@ python -m uvicorn src.api_server:app --host 0.0.0.0 --port 8000
 
 | Key | Service | Where to get it | Required for |
 |-----|---------|-----------------|--------------|
-| `NVIDIA_API_KEY` | NVIDIA NIM | [build.nvidia.com](https://build.nvidia.com) | AI Chat (primary) |
+| `DEEPSEEK_API_KEY` | DeepSeek | [platform.deepseek.com](https://platform.deepseek.com) | AI Chat (primary) |
 | `TOMTOM_API_KEY` | TomTom Maps | [developer.tomtom.com](https://developer.tomtom.com) | Night map tiles |
 | `GEMINI_API_KEY` | Google Gemini | [aistudio.google.com](https://aistudio.google.com) | AI Chat (fallback only) |
 
-> Only `NVIDIA_API_KEY` is required for AI chat. TomTom is optional (fallback to CartoDB tiles if missing). Gemini is kept as fallback.
+> Only `DEEPSEEK_API_KEY` is required for AI chat. TomTom is optional (fallback to CartoDB tiles if missing). Gemini is kept as fallback.
 
 ---
 
@@ -288,7 +288,7 @@ cp .env.example .env
 Then open `.env` in any text editor and fill in your API keys:
 
 ```env
-NVIDIA_API_KEY=nvapi-your-key-here
+DEEPSEEK_API_KEY=sk-your-key-here
 TOMTOM_API_KEY=your-tomtom-key-here
 GEMINI_API_KEY=your-gemini-key-here   # optional fallback
 ```
@@ -322,9 +322,9 @@ If any files show `MISSING`, you need to run the full data pipeline (see Section
 Create a `.env` file in the project root (copy from `.env.example`):
 
 ```env
-# NVIDIA NIM — Primary AI backend (required for AI Chat)
-# Get your free key at: https://build.nvidia.com
-NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# DeepSeek — Primary AI backend (required for AI Chat)
+# Get your free key at: https://platform.deepseek.com
+DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # TomTom — Premium dark map tiles (optional, falls back to CartoDB)
 # Get your free key at: https://developer.tomtom.com
@@ -461,7 +461,7 @@ The pipeline has 11 sequential stages:
 | 8 | `enforcement_optimizer.py` | K-Means zone clustering, CHR-based priority ranking |
 | 9 | `patrol_router.py` | Generate shift-based patrol routes (GeoJSON) |
 | 10 | `prediction.py` | Train XGBoost model, generate next-week predictions |
-| 11 | `llm_agent.py` | Build NVIDIA NIM AI agent with live data context |
+| 11 | `llm_agent.py` | Build DeepSeek AI agent with live data context |
 
 ### Run the complete pipeline
 
@@ -571,7 +571,7 @@ The main map page with full-screen Leaflet view.
 ### AI Chat (`[A]`)
 
 **How it works:**
-- Powered by NVIDIA NIM — `meta/llama-3.3-70b-instruct`
+- Powered by DeepSeek — `meta/llama-3.3-70b-instruct`
 - Live data context (top stations, hourly patterns, vehicle types, predictions) injected into every request
 - Conversation history maintained across turns in the same session
 - "Reset Conversation" button clears server-side history
@@ -763,7 +763,7 @@ PARKVISION-AI/
 │   ├── patrol_router.py          # Stage 9: Shift-based patrol routes
 │   ├── prediction.py             # Stage 10: XGBoost predictions
 │   ├── api_server.py             # FastAPI backend (auth + 20+ endpoints)
-│   └── llm_agent.py              # NVIDIA NIM AI agent
+│   └── llm_agent.py              # DeepSeek AI agent
 │
 ├── dashboard/
 │   ├── login.html                # Admin / Station login page
@@ -866,9 +866,9 @@ os.environ["HTTPS_PROXY"] = "http://your-proxy:port"
 
 ### AI Chat returns "Rate Limit Reached"
 
-Your NVIDIA NIM free-tier quota was hit. Solutions:
-1. Wait a few seconds and retry (NVIDIA resets per-minute)
-2. Check your rate limits at [build.nvidia.com](https://build.nvidia.com)
+Your DeepSeek API quota was hit. Solutions:
+1. Wait a few seconds and retry (DeepSeek resets per-minute)
+2. Check your rate limits at [platform.deepseek.com](https://platform.deepseek.com)
 3. The system automatically falls back to Gemini if `GEMINI_API_KEY` is set
 
 ### Server fails to start — `ModuleNotFoundError`
@@ -932,7 +932,7 @@ MIT License — see `LICENSE` file for details.
 ## Acknowledgements
 
 - **OpenStreetMap** — Road network data
-- **NVIDIA NIM** — LLaMA-3.3-70B inference
+- **DeepSeek** — LLaMA-3.3-70B inference
 - **H3 by Uber** — Hierarchical hexagonal indexing
 - **Leaflet.js** — Interactive mapping
 - **Chart.js** — Data visualization

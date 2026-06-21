@@ -89,7 +89,7 @@ The AI will automatically cluster the highest-priority zones and draw color-code
 **Impact:** Ensures enforcement tactics match the physical reality of the specific neighborhood.
 
 ### 7. Natural Language AI Assistant (`[A]`)
-**What it is:** An integrated AI chatbot powered by an advanced Large Language Model (NVIDIA NIM / LLaMA-3.3-70B).
+**What it is:** An integrated AI chatbot powered by an advanced Large Language Model (DeepSeek-V3 via DeepSeek API).
 **How to use it:** Instead of manually digging through charts, an officer can simply ask questions in plain English. The AI is injected with the live context of the database.
 *   *Example Queries:* "Which station needs the most enforcement support today?", "Why is there a spike in violations at 4 AM?", "Predict the top 5 hotspots for next Monday."
 **Impact:** Democratizes data access. An officer doesn't need to be a data scientist to get complex, data-backed insights from the platform in seconds.

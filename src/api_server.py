@@ -30,7 +30,7 @@ from config.settings import (
     ENFORCEMENT_PRIORITIES_PARQUET, LOCATION_MEMORY_PARQUET,
     PREDICTED_VIOLATIONS_PARQUET, H3_HOTSPOT_SIG_PARQUET,
     POLICE_STATIONS_GEOJSON, PATROL_ROUTES_GEOJSON,
-    GEMINI_API_KEY, NVIDIA_API_KEY,
+    GEMINI_API_KEY, DEEPSEEK_API_KEY,
     AUTH_COOKIE_NAME, USERS_FILE,
 )
 from src.auth import (
@@ -220,7 +220,7 @@ def _get_agent(user: User):
     global _agent_model
     if _agent_model is None:
         from src.llm_agent import create_agent
-        backend = "NVIDIA NIM" if NVIDIA_API_KEY else "Gemini"
+        backend = "DeepSeek" if DEEPSEEK_API_KEY else "Gemini"
         logger.info(f"Initializing {backend} agent...")
         _agent_model = create_agent()
         logger.info(f"{backend} agent ready.")
@@ -794,12 +794,12 @@ async def get_weekend_split(user: User = Depends(require_admin)):
 
 @app.post("/api/chat")
 async def chat_endpoint(payload: dict, user: User = Depends(get_current_user)):
-    """LLM chat proxy — NVIDIA NIM primary, Gemini fallback."""
+    """LLM chat proxy — DeepSeek primary, Gemini fallback."""
     query = payload.get("query", "")
     if not query.strip():
         raise HTTPException(400, "Missing 'query' field")
-    if not NVIDIA_API_KEY and not GEMINI_API_KEY:
-        return {"response": "**Configuration Error**: No AI API key set. Add NVIDIA_API_KEY to your .env file."}
+    if not DEEPSEEK_API_KEY and not GEMINI_API_KEY:
+        return {"response": "**Configuration Error**: No AI API key set. Add DEEPSEEK_API_KEY to your .env file."}
     try:
         from src.llm_agent import handle_query
         agent, history = _get_agent(user)
@@ -811,7 +811,7 @@ async def chat_endpoint(payload: dict, user: User = Depends(get_current_user)):
         if "429" in err or "quota" in err.lower() or "rate" in err.lower():
             return {"response": "**Rate Limit Reached** — Please wait a moment and try again."}
         if "401" in err or "unauthorized" in err.lower() or "invalid" in err.lower():
-            return {"response": "**Authentication Error** — Check that your NVIDIA_API_KEY in .env is correct."}
+            return {"response": "**Authentication Error** — Check that your DEEPSEEK_API_KEY in .env is correct."}
         return {"response": f"**Error**: {err[:400]}"}
 
 

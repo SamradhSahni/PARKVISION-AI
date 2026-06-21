@@ -269,10 +269,12 @@ PATROL_SPEED_KMPH = 20
 # Create a .env file at project root with:
 #   TOMTOM_API_KEY=your_key_here
 #   GEMINI_API_KEY=your_key_here
-#   NVIDIA_API_KEY=your_key_here
+#   DEEPSEEK_API_KEY=your_key_here
 
 TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+# Legacy alias kept for backward compatibility
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
 # ============================================

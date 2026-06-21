@@ -1,7 +1,7 @@
 """
-PARKVISION AI — LLM Agent (NVIDIA NIM Backend)
+PARKVISION AI — LLM Agent (DeepSeek Backend)
 ================================================
-Conversational AI using NVIDIA NIM API (OpenAI-compatible).
+Conversational AI using DeepSeek API (OpenAI-compatible).
 Uses context injection: fetches live data from processed files and
 embeds it directly into the system prompt for rich, accurate answers.
 
@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config.settings import (
     DATA_DIR,
     OUTPUT_DIR,
-    NVIDIA_API_KEY,
+    DEEPSEEK_API_KEY,
     GEMINI_API_KEY,
     PCIS_SCORED_PARQUET,
     CLUSTER_PROFILES_PARQUET,
@@ -44,10 +44,10 @@ logging.basicConfig(format=LOG_FORMAT, level=LOG_LEVEL)
 logger = logging.getLogger("llm_agent")
 
 # ============================================
-# NVIDIA NIM CONFIG
+# DEEPSEEK CONFIG
 # ============================================
-NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-NVIDIA_MODEL = "meta/llama-3.3-70b-instruct"   # High quota, tool-capable
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEEPSEEK_MODEL = "deepseek-chat"   # DeepSeek-V3, latest model
 
 # ============================================
 # DATA LOADERS (lazy, cached)
@@ -321,29 +321,29 @@ LIVE DATA FROM PARKVISION ANALYSIS:
 
 
 # ============================================
-# NVIDIA NIM AGENT
+# DEEPSEEK AGENT
 # ============================================
 def create_agent():
     """
-    Initialize the NVIDIA NIM client.
-    Returns an openai.OpenAI client configured for NVIDIA NIM.
-    Falls back to Gemini if NVIDIA key not available.
+    Initialize the DeepSeek client.
+    Returns an openai.OpenAI client configured for the DeepSeek API.
+    Falls back to Gemini if DeepSeek key not available.
     """
-    if NVIDIA_API_KEY:
+    if DEEPSEEK_API_KEY:
         try:
             from openai import OpenAI
             client = OpenAI(
-                base_url=NVIDIA_BASE_URL,
-                api_key=NVIDIA_API_KEY,
+                base_url=DEEPSEEK_BASE_URL,
+                api_key=DEEPSEEK_API_KEY,
             )
-            logger.info(f"NVIDIA NIM agent initialized (model: {NVIDIA_MODEL})")
-            return {"type": "nvidia", "client": client}
+            logger.info(f"DeepSeek agent initialized (model: {DEEPSEEK_MODEL})")
+            return {"type": "deepseek", "client": client}
         except ImportError:
             logger.error("openai package not installed. Run: pip install openai")
             raise
 
     elif GEMINI_API_KEY:
-        logger.warning("NVIDIA_API_KEY not set, falling back to Gemini")
+        logger.warning("DEEPSEEK_API_KEY not set, falling back to Gemini")
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel(
@@ -353,7 +353,7 @@ def create_agent():
         return {"type": "gemini", "model": model}
 
     else:
-        raise ValueError("No AI API key configured. Set NVIDIA_API_KEY or GEMINI_API_KEY in .env")
+        raise ValueError("No AI API key configured. Set DEEPSEEK_API_KEY or GEMINI_API_KEY in .env")
 
 
 def handle_query(agent: dict, chat, user_query: str, station: Optional[str] = None) -> str:
@@ -385,16 +385,16 @@ def handle_query(agent: dict, chat, user_query: str, station: Optional[str] = No
             chat.append({"role": "assistant", "content": restriction_msg})
         return restriction_msg
 
-    if agent["type"] == "nvidia":
-        return _handle_nvidia(agent["client"], chat, user_query, station)
+    if agent["type"] == "deepseek":
+        return _handle_deepseek(agent["client"], chat, user_query, station)
     elif agent["type"] == "gemini":
         return _handle_gemini(agent["model"], chat, user_query)
     else:
         return "Error: Unknown agent type."
 
 
-def _handle_nvidia(client, history: list, user_query: str, station: Optional[str] = None) -> str:
-    """NVIDIA NIM handler using OpenAI-compatible API with context injection."""
+def _handle_deepseek(client, history: list, user_query: str, station: Optional[str] = None) -> str:
+    """DeepSeek handler using OpenAI-compatible API with context injection."""
     context = build_context(station=station)
     system_msg = SYSTEM_PROMPT.format(context=context)
     if station:
@@ -406,7 +406,7 @@ def _handle_nvidia(client, history: list, user_query: str, station: Optional[str
     messages.append({"role": "user", "content": user_query})
 
     response = client.chat.completions.create(
-        model=NVIDIA_MODEL,
+        model=DEEPSEEK_MODEL,
         messages=messages,
         temperature=0.6,
         top_p=0.95,
