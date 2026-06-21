@@ -226,6 +226,50 @@ def build_context(station: Optional[str] = None) -> str:
 
 
 # ============================================
+# CITY-WIDE QUERY GUARD (for station-role users)
+# ============================================
+
+# Keywords that signal the user is asking about city-wide or cross-station data
+_CITY_WIDE_KEYWORDS = [
+    "all station", "all stations", "every station", "each station",
+    "entire city", "whole city", "city wide", "city-wide", "citywide",
+    "all of bengaluru", "all bengaluru", "bangalore city", "bengaluru city",
+    "across bangalore", "across bengaluru", "overall city", "city total",
+    "compare station", "compare all", "top station", "top stations",
+    "worst station", "best station", "all jurisdiction", "all jurisdictions",
+    "stationwise", "station wise", "other station",
+]
+
+def _is_city_wide_query(query: str, user_station: str) -> bool:
+    """
+    Return True if a station-role user's query is asking about
+    city-wide data, other stations, or cross-station comparisons.
+    """
+    q = query.lower().strip()
+
+    # Check generic city-wide keywords
+    for kw in _CITY_WIDE_KEYWORDS:
+        if kw in q:
+            return True
+
+    # Check if they mention another station by name
+    # (we detect this in the api_server by injecting station context;
+    #  here we look for "station" combined with a name that isn't theirs)
+    if "station" in q and user_station:
+        my_station_lower = user_station.lower()
+        # If the query references a station name other than their own
+        # (simple heuristic: 'station' appears but their own name doesn't)
+        if "station" in q and my_station_lower not in q:
+            # Narrow check: only flag if it sounds like a comparison/inquiry
+            compare_words = ["which", "what", "where", "highest", "lowest",
+                             "best", "worst", "top", "most", "least", "compare"]
+            if any(cw in q for cw in compare_words):
+                return True
+
+    return False
+
+
+# ============================================
 # SYSTEM PROMPT
 # ============================================
 SYSTEM_PROMPT = """You are PARKVISION AI, the intelligent parking enforcement assistant for Bengaluru Traffic Police (BTP).
@@ -299,15 +343,32 @@ def create_agent():
 def handle_query(agent: dict, chat, user_query: str, station: Optional[str] = None) -> str:
     """
     Send a user query to the configured LLM and return the response.
-    
+
     Args:
         agent: dict with 'type' and client/model
         chat: chat history list (for NVIDIA) or Gemini chat session
         user_query: the user's question
-    
+        station: station name if user is a station-role officer, else None
+
     Returns:
         String response from the LLM.
     """
+    # ── Access guard for station-role users ─────────────────────────
+    if station and _is_city_wide_query(user_query, station):
+        restriction_msg = (
+            f"🔒 **Access Restricted** — You are logged in as **{station}** station.\n\n"
+            f"Your account is authorized to view data and answer queries related to "
+            f"**{station} jurisdiction only**. City-wide statistics, comparisons across "
+            f"multiple stations, or data from other police stations are not accessible "
+            f"from your login.\n\n"
+            f"If you need city-level insights, please contact your **City Command (Admin)** supervisor."
+        )
+        # Still add to history so the conversation flows naturally
+        if isinstance(chat, list):
+            chat.append({"role": "user", "content": user_query})
+            chat.append({"role": "assistant", "content": restriction_msg})
+        return restriction_msg
+
     if agent["type"] == "nvidia":
         return _handle_nvidia(agent["client"], chat, user_query, station)
     elif agent["type"] == "gemini":

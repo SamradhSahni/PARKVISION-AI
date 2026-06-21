@@ -50,3 +50,13 @@ models/*.pkl
 !data/.gitkeep
 !output/.gitkeep
 !models/.gitkeep
+
+# SSH keys
+*.pem
+*.ppk
+
+# Deployment scripts
+configure_server.sh
+finalize_deploy.sh
+install_python.sh
+server_setup.sh

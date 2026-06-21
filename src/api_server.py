@@ -125,8 +125,20 @@ async def serve_login():
     raise HTTPException(404, "Login page not found")
 
 
+from fastapi import Request
+from fastapi.responses import RedirectResponse
+
 @app.get("/")
-async def serve_dashboard():
+async def serve_dashboard(request: Request):
+    token = request.cookies.get(AUTH_COOKIE_NAME)
+    if not token:
+        return RedirectResponse(url="/login", status_code=302)
+    try:
+        from src.auth import decode_token
+        decode_token(token)
+    except Exception:
+        return RedirectResponse(url="/login", status_code=302)
+
     index = DASHBOARD_DIR / "index.html"
     if index.exists():
         return FileResponse(index)
